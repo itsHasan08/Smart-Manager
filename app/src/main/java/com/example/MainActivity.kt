@@ -11,7 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,6 +23,7 @@ import com.example.ui.theme.PureWhite
 import com.example.ui.theme.Strings
 import com.example.ui.viewmodel.CurrentRole
 import com.example.ui.viewmodel.MessViewModel
+import kotlinx.coroutines.delay
 
 enum class AppSubScreen {
     NONE,
@@ -59,6 +60,13 @@ fun SmartMessApp(viewModel: MessViewModel = viewModel()) {
     val expensesForMonth by viewModel.expensesForMonth.collectAsStateWithLifecycle()
     val depositsForMonth by viewModel.depositsForMonth.collectAsStateWithLifecycle()
 
+    // Smooth App Startup Loading Animation State
+    var isAppLoading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(900L)
+        isAppLoading = false
+    }
+
     var selectedTab by remember { mutableStateOf(0) }
     var currentSubScreen by remember { mutableStateOf(AppSubScreen.NONE) }
     var selectedDetailMemberId by remember { mutableStateOf<Long?>(null) }
@@ -84,137 +92,148 @@ fun SmartMessApp(viewModel: MessViewModel = viewModel()) {
         }
     }
 
-    Scaffold(
-        containerColor = PureWhite,
-        topBar = {
-            if (currentSubScreen == AppSubScreen.NONE) {
-                TopMessAppBar(
-                    messName = messProfile?.messName ?: Strings.appName(currentLanguage),
-                    currentRole = currentRole,
-                    currentMemberName = activeMemberName,
-                    members = allMembers,
-                    currentLanguage = currentLanguage,
-                    onToggleLanguage = { viewModel.toggleLanguage() },
-                    onRoleChange = { role, memberId ->
-                        viewModel.setRole(role, memberId)
-                        if (role == CurrentRole.MEMBER) {
-                            selectedDetailMemberId = memberId
-                            currentSubScreen = AppSubScreen.MEMBER_DETAIL
+    Box(modifier = Modifier.fillMaxSize().background(PureWhite)) {
+        Scaffold(
+            containerColor = PureWhite,
+            topBar = {
+                if (currentSubScreen == AppSubScreen.NONE) {
+                    TopMessAppBar(
+                        messName = messProfile?.messName ?: Strings.appName(currentLanguage),
+                        currentRole = currentRole,
+                        currentMemberName = activeMemberName,
+                        members = allMembers,
+                        currentLanguage = currentLanguage,
+                        onToggleLanguage = { viewModel.toggleLanguage() },
+                        onRoleChange = { role, memberId ->
+                            viewModel.setRole(role, memberId)
+                            if (role == CurrentRole.MEMBER) {
+                                selectedDetailMemberId = memberId
+                                currentSubScreen = AppSubScreen.MEMBER_DETAIL
+                            }
+                        },
+                        onSettlementClick = {
+                            currentSubScreen = AppSubScreen.SETTLEMENT
                         }
-                    },
-                    onSettlementClick = {
-                        currentSubScreen = AppSubScreen.SETTLEMENT
-                    }
-                )
+                    )
+                }
+            },
+            bottomBar = {
+                if (currentSubScreen == AppSubScreen.NONE) {
+                    MainBottomNav(
+                        selectedTab = selectedTab,
+                        currentLanguage = currentLanguage,
+                        onTabSelected = { selectedTab = it }
+                    )
+                }
             }
-        },
-        bottomBar = {
-            if (currentSubScreen == AppSubScreen.NONE) {
-                MainBottomNav(
-                    selectedTab = selectedTab,
-                    currentLanguage = currentLanguage,
-                    onTabSelected = { selectedTab = it }
-                )
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PureWhite)
+                    .padding(innerPadding)
+            ) {
+                when (currentSubScreen) {
+                    AppSubScreen.MEMBER_DETAIL -> {
+                        val stmt = memberStatements.find { it.member.id == (selectedDetailMemberId ?: currentMemberId) }
+                        MemberDetailScreen(
+                            statement = stmt,
+                            mealRate = messSummary.mealRate,
+                            currentLanguage = currentLanguage,
+                            onBack = {
+                                currentSubScreen = AppSubScreen.NONE
+                                selectedDetailMemberId = null
+                            },
+                            onRecordDeposit = {
+                                depositPreselectedMemberId = stmt?.member?.id
+                                showAddDepositDialog = true
+                            }
+                        )
+                    }
+
+                    AppSubScreen.SETTLEMENT -> {
+                        MonthlySettlementScreen(
+                            summary = messSummary,
+                            statements = memberStatements,
+                            profile = messProfile,
+                            currentMonth = currentMonth,
+                            currentLanguage = currentLanguage,
+                            onMonthSelected = { viewModel.setMonth(it) },
+                            onBack = { currentSubScreen = AppSubScreen.NONE },
+                            onGenerateReportText = { viewModel.generateMonthlyReportText() }
+                        )
+                    }
+
+                    AppSubScreen.NONE -> {
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                            },
+                            label = "tab_animation"
+                        ) { targetTab ->
+                            when (targetTab) {
+                                0 -> DashboardScreen(
+                                    summary = messSummary,
+                                    profile = messProfile,
+                                    memberStatements = memberStatements,
+                                    currentMonth = currentMonth,
+                                    currentLanguage = currentLanguage,
+                                    onMonthSelected = { viewModel.setMonth(it) },
+                                    onQuickDeposit = { showAddDepositDialog = true },
+                                    onQuickBazar = { showAddBazarDialog = true },
+                                    onQuickMeal = { selectedTab = 1 },
+                                    onMemberClick = { memberId ->
+                                        selectedDetailMemberId = memberId
+                                        currentSubScreen = AppSubScreen.MEMBER_DETAIL
+                                    },
+                                    onViewSettlement = { currentSubScreen = AppSubScreen.SETTLEMENT }
+                                )
+
+                                1 -> MealManagementScreen(
+                                    members = activeMembers,
+                                    allMonthMeals = mealsForMonth,
+                                    messSummary = messSummary,
+                                    currentMonth = currentMonth,
+                                    currentLanguage = currentLanguage,
+                                    onSaveMeals = { viewModel.saveDailyMeals(it) }
+                                )
+
+                                2 -> BazarManagementScreen(
+                                    bazarList = bazarForMonth,
+                                    members = allMembers,
+                                    totalBazar = messSummary.monthlyBazar,
+                                    currentLanguage = currentLanguage,
+                                    onAddBazarClick = { showAddBazarDialog = true }
+                                )
+
+                                3 -> AccountsAndExpensesScreen(
+                                    deposits = depositsForMonth,
+                                    expenses = expensesForMonth,
+                                    members = allMembers,
+                                    messSummary = messSummary,
+                                    currentLanguage = currentLanguage,
+                                    onAddDepositClick = { showAddDepositDialog = true },
+                                    onAddExpenseClick = { showAddExpenseDialog = true }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PureWhite)
-                .padding(innerPadding)
+
+        // Smooth Light Loading Screen Overlay on Startup
+        AnimatedVisibility(
+            visible = isAppLoading,
+            enter = fadeIn(),
+            exit = fadeOut(animationSpec = tween(350))
         ) {
-            when (currentSubScreen) {
-                AppSubScreen.MEMBER_DETAIL -> {
-                    val stmt = memberStatements.find { it.member.id == (selectedDetailMemberId ?: currentMemberId) }
-                    MemberDetailScreen(
-                        statement = stmt,
-                        mealRate = messSummary.mealRate,
-                        currentLanguage = currentLanguage,
-                        onBack = {
-                            currentSubScreen = AppSubScreen.NONE
-                            selectedDetailMemberId = null
-                        },
-                        onRecordDeposit = {
-                            depositPreselectedMemberId = stmt?.member?.id
-                            showAddDepositDialog = true
-                        }
-                    )
-                }
-
-                AppSubScreen.SETTLEMENT -> {
-                    MonthlySettlementScreen(
-                        summary = messSummary,
-                        statements = memberStatements,
-                        profile = messProfile,
-                        currentMonth = currentMonth,
-                        currentLanguage = currentLanguage,
-                        onMonthSelected = { viewModel.setMonth(it) },
-                        onBack = { currentSubScreen = AppSubScreen.NONE },
-                        onGenerateReportText = { viewModel.generateMonthlyReportText() }
-                    )
-                }
-
-                AppSubScreen.NONE -> {
-                    AnimatedContent(
-                        targetState = selectedTab,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-                        },
-                        label = "tab_animation"
-                    ) { targetTab ->
-                        when (targetTab) {
-                            0 -> DashboardScreen(
-                                summary = messSummary,
-                                profile = messProfile,
-                                memberStatements = memberStatements,
-                                currentMonth = currentMonth,
-                                currentLanguage = currentLanguage,
-                                onMonthSelected = { viewModel.setMonth(it) },
-                                onQuickDeposit = { showAddDepositDialog = true },
-                                onQuickBazar = { showAddBazarDialog = true },
-                                onQuickMeal = { selectedTab = 1 },
-                                onMemberClick = { memberId ->
-                                    selectedDetailMemberId = memberId
-                                    currentSubScreen = AppSubScreen.MEMBER_DETAIL
-                                },
-                                onViewSettlement = { currentSubScreen = AppSubScreen.SETTLEMENT }
-                            )
-
-                            1 -> MealManagementScreen(
-                                members = activeMembers,
-                                allMonthMeals = mealsForMonth,
-                                messSummary = messSummary,
-                                currentMonth = currentMonth,
-                                currentLanguage = currentLanguage,
-                                onSaveMeals = { viewModel.saveDailyMeals(it) }
-                            )
-
-                            2 -> BazarManagementScreen(
-                                bazarList = bazarForMonth,
-                                members = allMembers,
-                                totalBazar = messSummary.monthlyBazar,
-                                currentLanguage = currentLanguage,
-                                onAddBazarClick = { showAddBazarDialog = true }
-                            )
-
-                            3 -> AccountsAndExpensesScreen(
-                                deposits = depositsForMonth,
-                                expenses = expensesForMonth,
-                                members = allMembers,
-                                messSummary = messSummary,
-                                currentLanguage = currentLanguage,
-                                onAddDepositClick = { showAddDepositDialog = true },
-                                onAddExpenseClick = { showAddExpenseDialog = true }
-                            )
-                        }
-                    }
-                }
-            }
+            AppSplashScreen(currentLanguage = currentLanguage)
         }
     }
 
-    // Clean Dialogs with Bilingual Support
+    // Clean Dialogs with Bilingual Support and Itemized Bazar
     if (showAddDepositDialog) {
         val targetMembers = if (depositPreselectedMemberId != null) {
             allMembers.filter { it.id == depositPreselectedMemberId }

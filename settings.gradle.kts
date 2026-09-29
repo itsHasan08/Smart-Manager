@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Mess Manager"
+rootProject.name = "Smart Manager"
 
 include(":app")

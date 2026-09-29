@@ -6,10 +6,11 @@ enum class AppLanguage {
 }
 
 object Strings {
-    fun appName(lang: AppLanguage) = if (lang == AppLanguage.BN) "স্মার্ট মেস ম্যানেজার" else "Smart Mess Manager"
+    fun appName(lang: AppLanguage) = if (lang == AppLanguage.BN) "স্মার্ট ম্যানেজার" else "Smart Manager"
+    fun appTagline(lang: AppLanguage) = if (lang == AppLanguage.BN) "সহজ ও স্বচ্ছ মেস ব্যবস্থাপনা" else "Simple & Transparent Mess Manager"
     fun managerBalance(lang: AppLanguage) = if (lang == AppLanguage.BN) "ম্যানেজারের হাতে নগদ ব্যালেন্স" else "Manager Cash Balance"
     fun totalDeposits(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট নগদ জমা" else "Total Collected"
-    fun totalExpenses(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট মেস খরচ" else "Total Mess Expenses"
+    fun totalExpenses(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট মেস খরচ" else "Total Expenses"
     fun totalDue(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট বকেয়া বাকি" else "Total Pending Due"
     fun mealRate(lang: AppLanguage) = if (lang == AppLanguage.BN) "বর্তমান মিল রেট" else "Current Meal Rate"
     fun totalMeals(lang: AppLanguage) = if (lang == AppLanguage.BN) "মোট মিল" else "Total Meals"
@@ -24,6 +25,7 @@ object Strings {
     fun due(lang: AppLanguage) = if (lang == AppLanguage.BN) "বাকি" else "Due"
     fun advance(lang: AppLanguage) = if (lang == AppLanguage.BN) "জমা" else "Advance"
     fun room(lang: AppLanguage) = if (lang == AppLanguage.BN) "রুম" else "Room"
+    fun bed(lang: AppLanguage) = if (lang == AppLanguage.BN) "বেড" else "Bed"
     fun mealsCount(lang: AppLanguage) = if (lang == AppLanguage.BN) "মিল" else "Meals"
     fun mealUnit(lang: AppLanguage) = if (lang == AppLanguage.BN) "টি" else "meals"
     fun date(lang: AppLanguage) = if (lang == AppLanguage.BN) "তারিখ" else "Date"
@@ -53,4 +55,24 @@ object Strings {
     fun name(lang: AppLanguage) = if (lang == AppLanguage.BN) "নাম" else "Full Name"
     fun rentBillsTab(lang: AppLanguage) = if (lang == AppLanguage.BN) "মেসের বিল ও ভাড়া" else "Rent & Utilities"
     fun depositsTab(lang: AppLanguage) = if (lang == AppLanguage.BN) "সদস্যদের নগদ জমা" else "Cash Deposits"
+
+    // Itemized Bazar Strings
+    fun itemizedBazarTitle(lang: AppLanguage) = if (lang == AppLanguage.BN) "পণ্যের তালিকা ও দরদাম" else "Itemized Bazar Items & Prices"
+    fun itemQuantityExample(lang: AppLanguage) = if (lang == AppLanguage.BN) "যেমন: ১ কেজি আলু" else "e.g. 1kg Potato"
+    fun itemPriceExample(lang: AppLanguage) = if (lang == AppLanguage.BN) "টাকা (২০)" else "Price (20)"
+    fun addItemRow(lang: AppLanguage) = if (lang == AppLanguage.BN) "+ আরো জিনিস যোগ করুন" else "+ Add More Item"
+    fun calculatedTotal(lang: AppLanguage) = if (lang == AppLanguage.BN) "স্বয়ংক্রিয় মোট হিসাব" else "Calculated Total"
+
+    // Drawer Strings
+    fun drawerHome(lang: AppLanguage) = if (lang == AppLanguage.BN) "ড্যাশবোর্ড" else "Dashboard"
+    fun drawerMeals(lang: AppLanguage) = if (lang == AppLanguage.BN) "মিল হিসাব ও হাজিরা" else "Daily Meal Sheet"
+    fun drawerBazar(lang: AppLanguage) = if (lang == AppLanguage.BN) "বাজার ও খরচের তালিকা" else "Bazar & Food Expenses"
+    fun drawerDeposits(lang: AppLanguage) = if (lang == AppLanguage.BN) "নগদ টাকা জমার খাতা" else "Cash Deposits Ledger"
+    fun drawerBills(lang: AppLanguage) = if (lang == AppLanguage.BN) "বাসা ভাড়া ও ইউটিলিটি বিল" else "Flat Rent & Utility Bills"
+    fun drawerSettlement(lang: AppLanguage) = if (lang == AppLanguage.BN) "মাসিক হিসাব ও ফাইনাল স্লিপ" else "Monthly Settlement Slip"
+    fun drawerLanguage(lang: AppLanguage) = if (lang == AppLanguage.BN) "ভাষা পরিবর্তন (Language)" else "Change Language (ভাষা)"
+    fun drawerSwitchRole(lang: AppLanguage) = if (lang == AppLanguage.BN) "ভিউ পরিবর্তন করুন" else "Switch View / Role"
+
+    // Splash
+    fun splashLoading(lang: AppLanguage) = if (lang == AppLanguage.BN) "স্মার্ট ম্যানেজার প্রস্তুত হচ্ছে..." else "Loading Smart Manager..."
 }

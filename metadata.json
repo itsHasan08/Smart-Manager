@@ -1,5 +1,5 @@
 {
-  "name": "Smart Mess Manager",
+  "name": "Smart Manager",
   "description": "Comprehensive Mess and Shared House Management app with automated meal rates, cash deposit accounting, bazar & utility tracking, due calculation, and member statements.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
