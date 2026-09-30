@@ -14,11 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Member
+import com.example.data.model.MessProfile
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.CurrentRole
 
@@ -30,6 +32,8 @@ fun TopMessAppBar(
     currentMemberName: String,
     members: List<Member>,
     currentLanguage: AppLanguage,
+    onMenuClick: () -> Unit,
+    onEditProfileClick: () -> Unit,
     onToggleLanguage: () -> Unit,
     onRoleChange: (CurrentRole, Long) -> Unit,
     onSettlementClick: () -> Unit
@@ -40,8 +44,8 @@ fun TopMessAppBar(
         title = {
             Column {
                 Text(
-                    text = messName,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    text = messName.ifBlank { Strings.appName(currentLanguage) },
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp),
                     color = DarkText,
                     maxLines = 1
                 )
@@ -50,7 +54,7 @@ fun TopMessAppBar(
                     modifier = Modifier.clickable { showRoleMenu = true }
                 ) {
                     val roleLabel = if (currentRole == CurrentRole.ADMIN) {
-                        if (currentLanguage == AppLanguage.BN) "ম্যানেজার মোড (Admin)" else "Manager Mode (Admin)"
+                        if (currentLanguage == AppLanguage.BN) "ম্যানেজার মোড" else "Manager Mode"
                     } else {
                         if (currentLanguage == AppLanguage.BN) "সদস্য: $currentMemberName" else "Member: $currentMemberName"
                     }
@@ -59,7 +63,7 @@ fun TopMessAppBar(
                         modifier = Modifier
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(RedPrimary)
+                            .background(BrandPrimary)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
@@ -85,7 +89,7 @@ fun TopMessAppBar(
                             Text(
                                 if (currentLanguage == AppLanguage.BN) "👑 ম্যানেজার ভিউ (Admin)" else "👑 Manager View (Admin)",
                                 fontWeight = if (currentRole == CurrentRole.ADMIN) FontWeight.Bold else FontWeight.Normal,
-                                color = if (currentRole == CurrentRole.ADMIN) RedPrimary else DarkText
+                                color = if (currentRole == CurrentRole.ADMIN) BrandPrimary else DarkText
                             )
                         },
                         onClick = {
@@ -112,37 +116,74 @@ fun TopMessAppBar(
                 }
             }
         },
+        navigationIcon = {
+            // Stylized Drawer Menu Hamburger Button
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .testTag("appbar_drawer_btn")
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(BrandPrimaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "মেনু খুলুন",
+                        tint = BrandPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        },
         actions = {
-            // Elegant Language Toggle Pill (বাং / EN)
+            // Language Toggle Pill (বাং / EN)
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = RedPrimaryContainer,
-                border = BorderStroke(1.dp, RedPrimary.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(14.dp),
+                color = BrandPrimaryContainer,
+                border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.2f)),
                 modifier = Modifier
                     .padding(end = 4.dp)
                     .clickable { onToggleLanguage() }
                     .testTag("language_toggle_btn")
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Translate,
                         contentDescription = "Language",
-                        tint = RedPrimary,
-                        modifier = Modifier.size(14.dp)
+                        tint = BrandPrimary,
+                        modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = if (currentLanguage == AppLanguage.BN) "বাংলা" else "English",
+                        text = if (currentLanguage == AppLanguage.BN) "বাংলা" else "EN",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp
                         ),
-                        color = RedPrimary
+                        color = BrandPrimary
                     )
                 }
+            }
+
+            // Mess / Manager Profile Setup Button
+            IconButton(
+                onClick = onEditProfileClick,
+                modifier = Modifier.testTag("appbar_profile_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AccountCircle,
+                    contentDescription = "প্রোফাইল তথ্য",
+                    tint = DarkText,
+                    modifier = Modifier.size(22.dp)
+                )
             }
 
             // Quick Monthly Statement Slip Button
@@ -153,7 +194,8 @@ fun TopMessAppBar(
                 Icon(
                     imageVector = Icons.Outlined.ReceiptLong,
                     contentDescription = "মাসিক হিসাব",
-                    tint = RedPrimary
+                    tint = BrandPrimary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         },
@@ -161,6 +203,255 @@ fun TopMessAppBar(
             containerColor = PureWhite
         )
     )
+}
+
+@Composable
+fun AppDrawerSheet(
+    profile: MessProfile?,
+    currentLanguage: AppLanguage,
+    selectedTab: Int,
+    onSelectTab: (Int) -> Unit,
+    onEditProfileClick: () -> Unit,
+    onSettlementClick: () -> Unit,
+    onToggleLanguage: () -> Unit,
+    onCloseDrawer: () -> Unit
+) {
+    ModalDrawerSheet(
+        modifier = Modifier.width(310.dp),
+        drawerContainerColor = PureWhite,
+        drawerTonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            // Profile Card Header (Mess & Manager Info)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = BrandPrimaryContainer),
+                border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.2f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(BrandPrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Apartment,
+                                contentDescription = null,
+                                tint = PureWhite,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = PureWhite,
+                            border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.25f)),
+                            modifier = Modifier.clickable {
+                                onEditProfileClick()
+                                onCloseDrawer()
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit",
+                                    tint = BrandPrimary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (currentLanguage == AppLanguage.BN) "এডিট" else "Edit",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = BrandPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = profile?.messName?.ifBlank { Strings.appName(currentLanguage) } ?: Strings.appName(currentLanguage),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = DarkText,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "${if (currentLanguage == AppLanguage.BN) "ম্যানেজার: " else "Manager: "}${profile?.managerName ?: "Manager"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = GrayText
+                    )
+                    if (!profile?.managerPhone.isNullOrBlank()) {
+                        Text(
+                            text = "📞 ${profile?.managerPhone}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = GrayText
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = BorderGray)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Navigation Items (Clean stylized buttons)
+            DrawerNavItem(
+                icon = Icons.Default.Dashboard,
+                label = Strings.drawerHome(currentLanguage),
+                isSelected = selectedTab == 0,
+                onClick = {
+                    onSelectTab(0)
+                    onCloseDrawer()
+                }
+            )
+
+            DrawerNavItem(
+                icon = Icons.Default.Restaurant,
+                label = Strings.drawerMeals(currentLanguage),
+                isSelected = selectedTab == 1,
+                onClick = {
+                    onSelectTab(1)
+                    onCloseDrawer()
+                }
+            )
+
+            DrawerNavItem(
+                icon = Icons.Default.ShoppingCart,
+                label = Strings.drawerBazar(currentLanguage),
+                isSelected = selectedTab == 2,
+                onClick = {
+                    onSelectTab(2)
+                    onCloseDrawer()
+                }
+            )
+
+            DrawerNavItem(
+                icon = Icons.Default.AccountBalanceWallet,
+                label = Strings.drawerDeposits(currentLanguage),
+                isSelected = selectedTab == 3,
+                onClick = {
+                    onSelectTab(3)
+                    onCloseDrawer()
+                }
+            )
+
+            DrawerNavItem(
+                icon = Icons.Default.People,
+                label = Strings.navMembers(currentLanguage),
+                isSelected = selectedTab == 4,
+                onClick = {
+                    onSelectTab(4)
+                    onCloseDrawer()
+                }
+            )
+
+            DrawerNavItem(
+                icon = Icons.Default.ReceiptLong,
+                label = Strings.drawerSettlement(currentLanguage),
+                isSelected = false,
+                onClick = {
+                    onSettlementClick()
+                    onCloseDrawer()
+                }
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+            HorizontalDivider(color = BorderGray)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Bottom Drawer Actions: Language Toggle & Version
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleLanguage() }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Translate,
+                        contentDescription = null,
+                        tint = BrandPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (currentLanguage == AppLanguage.BN) "বাংলা ভাষা সক্রিয়" else "English Active",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = DarkText
+                    )
+                }
+
+                Text(
+                    text = if (currentLanguage == AppLanguage.BN) "Change" else "পরিবর্তন",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = BrandPrimary
+                )
+            }
+
+            Text(
+                text = "Smart Manager Lite v2.0",
+                style = MaterialTheme.typography.labelSmall,
+                color = GrayText.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DrawerNavItem(
+    icon: ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) BrandPrimaryContainer else PureWhite,
+        border = if (isSelected) BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.25f)) else null
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) BrandPrimary else GrayText,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                ),
+                color = if (isSelected) BrandPrimary else DarkText
+            )
+        }
+    }
 }
 
 @Composable
@@ -175,7 +466,8 @@ fun MainBottomNav(
     ) {
         NavigationBar(
             containerColor = PureWhite,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
+            modifier = Modifier.height(64.dp)
         ) {
             NavigationBarItem(
                 selected = selectedTab == 0,
@@ -183,14 +475,21 @@ fun MainBottomNav(
                 icon = {
                     Icon(
                         if (selectedTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                        contentDescription = Strings.navDashboard(currentLanguage)
+                        contentDescription = Strings.navDashboard(currentLanguage),
+                        modifier = Modifier.size(22.dp)
                     )
                 },
-                label = { Text(Strings.navDashboard(currentLanguage), fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal) },
+                label = { 
+                    Text(
+                        Strings.navDashboard(currentLanguage), 
+                        fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 11.sp
+                    ) 
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RedPrimary,
-                    selectedTextColor = RedPrimary,
-                    indicatorColor = RedPrimaryContainer,
+                    selectedIconColor = BrandPrimary,
+                    selectedTextColor = BrandPrimary,
+                    indicatorColor = BrandPrimaryContainer,
                     unselectedIconColor = GrayText,
                     unselectedTextColor = GrayText
                 ),
@@ -203,14 +502,21 @@ fun MainBottomNav(
                 icon = {
                     Icon(
                         if (selectedTab == 1) Icons.Filled.Restaurant else Icons.Outlined.Restaurant,
-                        contentDescription = Strings.navMeals(currentLanguage)
+                        contentDescription = Strings.navMeals(currentLanguage),
+                        modifier = Modifier.size(22.dp)
                     )
                 },
-                label = { Text(Strings.navMeals(currentLanguage), fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal) },
+                label = { 
+                    Text(
+                        Strings.navMeals(currentLanguage), 
+                        fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 11.sp
+                    ) 
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RedPrimary,
-                    selectedTextColor = RedPrimary,
-                    indicatorColor = RedPrimaryContainer,
+                    selectedIconColor = BrandPrimary,
+                    selectedTextColor = BrandPrimary,
+                    indicatorColor = BrandPrimaryContainer,
                     unselectedIconColor = GrayText,
                     unselectedTextColor = GrayText
                 ),
@@ -223,14 +529,21 @@ fun MainBottomNav(
                 icon = {
                     Icon(
                         if (selectedTab == 2) Icons.Filled.ShoppingCart else Icons.Outlined.ShoppingCart,
-                        contentDescription = Strings.navBazar(currentLanguage)
+                        contentDescription = Strings.navBazar(currentLanguage),
+                        modifier = Modifier.size(22.dp)
                     )
                 },
-                label = { Text(Strings.navBazar(currentLanguage), fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal) },
+                label = { 
+                    Text(
+                        Strings.navBazar(currentLanguage), 
+                        fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 11.sp
+                    ) 
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RedPrimary,
-                    selectedTextColor = RedPrimary,
-                    indicatorColor = RedPrimaryContainer,
+                    selectedIconColor = BrandPrimary,
+                    selectedTextColor = BrandPrimary,
+                    indicatorColor = BrandPrimaryContainer,
                     unselectedIconColor = GrayText,
                     unselectedTextColor = GrayText
                 ),
@@ -243,14 +556,21 @@ fun MainBottomNav(
                 icon = {
                     Icon(
                         if (selectedTab == 3) Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet,
-                        contentDescription = Strings.navCash(currentLanguage)
+                        contentDescription = Strings.navCash(currentLanguage),
+                        modifier = Modifier.size(22.dp)
                     )
                 },
-                label = { Text(Strings.navCash(currentLanguage), fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal, fontSize = 11.sp) },
+                label = { 
+                    Text(
+                        Strings.navCash(currentLanguage), 
+                        fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal, 
+                        fontSize = 11.sp
+                    ) 
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RedPrimary,
-                    selectedTextColor = RedPrimary,
-                    indicatorColor = RedPrimaryContainer,
+                    selectedIconColor = BrandPrimary,
+                    selectedTextColor = BrandPrimary,
+                    indicatorColor = BrandPrimaryContainer,
                     unselectedIconColor = GrayText,
                     unselectedTextColor = GrayText
                 ),
@@ -263,14 +583,21 @@ fun MainBottomNav(
                 icon = {
                     Icon(
                         if (selectedTab == 4) Icons.Filled.People else Icons.Outlined.People,
-                        contentDescription = Strings.navMembers(currentLanguage)
+                        contentDescription = Strings.navMembers(currentLanguage),
+                        modifier = Modifier.size(22.dp)
                     )
                 },
-                label = { Text(Strings.navMembers(currentLanguage), fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal, fontSize = 11.sp) },
+                label = { 
+                    Text(
+                        Strings.navMembers(currentLanguage), 
+                        fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal, 
+                        fontSize = 11.sp
+                    ) 
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = RedPrimary,
-                    selectedTextColor = RedPrimary,
-                    indicatorColor = RedPrimaryContainer,
+                    selectedIconColor = BrandPrimary,
+                    selectedTextColor = BrandPrimary,
+                    indicatorColor = BrandPrimaryContainer,
                     unselectedIconColor = GrayText,
                     unselectedTextColor = GrayText
                 ),

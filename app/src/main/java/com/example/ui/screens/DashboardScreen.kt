@@ -1,21 +1,26 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -40,403 +45,252 @@ fun DashboardScreen(
     onMemberClick: (Long) -> Unit,
     onViewSettlement: () -> Unit
 ) {
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureWhite)
+            .background(OffWhite)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .testTag("dashboard_screen"),
-        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Month Selector
-        item {
-            MonthFilterChips(
-                selectedMonth = currentMonth,
-                onMonthSelected = onMonthSelected
-            )
-        }
+        // 1. Month Filter Chips (Compact)
+        MonthFilterChips(
+            selectedMonth = currentMonth,
+            onMonthSelected = onMonthSelected
+        )
 
-        // Hero Cash Balance Card (Light Rose/Red Background with Crisp Typography)
-        item {
-            Card(
+        // 2. Hero Cash Balance Card (Clean, focused, no clutter)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("mess_balance_hero_card"),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = PureWhite),
+            border = BorderStroke(1.dp, BorderGray),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("mess_balance_hero_card"),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = RedPrimaryContainer),
-                border = BorderStroke(1.dp, RedPrimary.copy(alpha = 0.25f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = Strings.managerBalance(currentLanguage),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                color = RedOnPrimaryContainer
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "৳${String.format(Locale.US, "%,.2f", summary.currentMessBalance)}",
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 32.sp
-                                ),
-                                color = DarkText
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(RedPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AccountBalanceWallet,
-                                contentDescription = null,
-                                tint = PureWhite,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = RedPrimary.copy(alpha = 0.15f))
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Total Cash Collected (Green badge)
-                        Column {
-                            Text(
-                                text = Strings.totalDeposits(currentLanguage),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = GrayText
-                            )
-                            Text(
-                                text = "৳${String.format(Locale.US, "%,.0f", summary.totalDeposits)}",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = AdvanceGreen
-                            )
-                        }
-
-                        // Total Expenses (Red)
-                        Column {
-                            Text(
-                                text = Strings.totalExpenses(currentLanguage),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = GrayText
-                            )
-                            Text(
-                                text = "৳${String.format(Locale.US, "%,.0f", summary.totalExpense)}",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = DueRed
-                            )
-                        }
-
-                        // Total Due
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = Strings.totalDue(currentLanguage),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = GrayText
-                            )
-                            Text(
-                                text = "৳${String.format(Locale.US, "%,.0f", summary.totalDue)}",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = DueRed
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3 Big Action Buttons with Contextual Colors
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // 1. Deposit -> Green
-                DashboardActionButton(
-                    icon = Icons.Default.AddCard,
-                    label = Strings.quickDeposit(currentLanguage),
-                    bgColor = AdvanceGreenContainer,
-                    iconColor = AdvanceGreen,
-                    borderColor = AdvanceGreenBorder,
-                    onClick = onQuickDeposit,
-                    modifier = Modifier.weight(1f),
-                    testTag = "btn_quick_deposit"
-                )
-
-                // 2. Bazar -> Light Coral Red
-                DashboardActionButton(
-                    icon = Icons.Default.ShoppingCart,
-                    label = Strings.quickBazar(currentLanguage),
-                    bgColor = RedPrimaryContainer,
-                    iconColor = RedPrimary,
-                    borderColor = RedPrimary.copy(alpha = 0.2f),
-                    onClick = onQuickBazar,
-                    modifier = Modifier.weight(1f),
-                    testTag = "btn_quick_bazar"
-                )
-
-                // 3. Meals -> Warm Amber
-                DashboardActionButton(
-                    icon = Icons.Default.Restaurant,
-                    label = Strings.quickMeal(currentLanguage),
-                    bgColor = MealAmberContainer,
-                    iconColor = MealAmber,
-                    borderColor = MealAmberBorder,
-                    onClick = onQuickMeal,
-                    modifier = Modifier.weight(1f),
-                    testTag = "btn_quick_meal"
-                )
-            }
-        }
-
-        // Two Key Metrics: Meal Rate (Amber) and Monthly Bazar (Red)
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Meal Rate Card
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = PureWhite),
-                    border = BorderStroke(1.dp, MealAmberBorder)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = Strings.mealRate(currentLanguage),
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                color = GrayText
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(MealAmberContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Calculate, contentDescription = null, tint = MealAmber, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "৳${String.format(Locale.US, "%.2f", summary.mealRate)}",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
-                            color = DarkText
-                        )
-                        Text(
-                            text = "${Strings.totalMeals(currentLanguage)}: ${String.format(Locale.US, "%.0f", summary.monthlyMealCount)} ${Strings.mealUnit(currentLanguage)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MealAmber
-                        )
-                    }
-                }
-
-                // Total Bazar Card
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = PureWhite),
-                    border = BorderStroke(1.dp, RedPrimary.copy(alpha = 0.2f))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = Strings.monthlyBazar(currentLanguage),
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                color = GrayText
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(RedPrimaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.ShoppingBasket, contentDescription = null, tint = RedPrimary, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "৳${String.format(Locale.US, "%,.0f", summary.monthlyBazar)}",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
-                            color = DarkText
-                        )
-                        Text(
-                            text = "${Strings.rentAndBills(currentLanguage)}: ৳${String.format(Locale.US, "%,.0f", summary.houseRent + summary.totalUtilityBills)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = RedPrimary
-                        )
-                    }
-                }
-            }
-        }
-
-        // Settle & Slip Banner (Indigo/Purple Tint)
-        item {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onViewSettlement() },
-                shape = RoundedCornerShape(16.dp),
-                color = UtilityIndigoContainer,
-                border = BorderStroke(1.dp, UtilityIndigoBorder)
+                    .padding(20.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(UtilityIndigo),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ReceiptLong,
-                                contentDescription = null,
-                                tint = PureWhite,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = Strings.viewMonthlySlip(currentLanguage),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = DarkText
-                            )
-                            Text(
-                                text = Strings.viewMonthlySlipDesc(currentLanguage),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = GrayText
-                            )
-                        }
-                    }
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = UtilityIndigo
-                    )
-                }
-            }
-        }
-
-        // Member Accounting List Header
-        item {
-            SectionHeader(
-                title = "${Strings.membersSummary(currentLanguage)} (${memberStatements.size})"
-            )
-        }
-
-        // Member Items
-        items(memberStatements, key = { it.member.id }) { stmt ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onMemberClick(stmt.member.id) }
-                    .testTag("dashboard_member_${stmt.member.id}"),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = PureWhite),
-                border = BorderStroke(1.dp, BorderGray)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(if (stmt.isDue) RedPrimaryContainer else AdvanceGreenContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stmt.member.name.take(1).uppercase(),
-                                fontWeight = FontWeight.Bold,
-                                color = if (stmt.isDue) RedPrimary else AdvanceGreen,
-                                fontSize = 16.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = stmt.member.name,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = DarkText
-                            )
-                            Text(
-                                text = "${Strings.room(currentLanguage)}: ${stmt.member.roomNumber} • ${Strings.mealsCount(currentLanguage)}: ${String.format(Locale.US, "%.1f", stmt.mealCount)} ${Strings.mealUnit(currentLanguage)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = GrayText
-                            )
-                        }
-                    }
-
-                    Column(horizontalAlignment = Alignment.End) {
-                        BalanceBadge(
-                            isDue = stmt.isDue,
-                            amount = if (stmt.isDue) stmt.dueAmount else stmt.advanceAmount
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
+                    Column {
                         Text(
-                            text = "${Strings.advance(currentLanguage)}: ৳${String.format(Locale.US, "%,.0f", stmt.totalPaid)}",
+                            text = Strings.managerBalance(currentLanguage),
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = GrayText
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "৳${String.format(Locale.US, "%,.0f", summary.currentMessBalance)}",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 34.sp
+                            ),
+                            color = BrandPrimary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(BrandPrimaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = BrandPrimary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = BorderGray)
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Total Cash Deposit (Green)
+                    Column {
+                        Text(
+                            text = Strings.totalDeposits(currentLanguage),
                             style = MaterialTheme.typography.labelSmall,
                             color = GrayText
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "৳${String.format(Locale.US, "%,.0f", summary.totalDeposits)}",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = DepositGreen
+                        )
+                    }
+
+                    // Total Expenses (Coral Red)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = Strings.totalExpenses(currentLanguage),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = GrayText
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "৳${String.format(Locale.US, "%,.0f", summary.totalExpense)}",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = ExpenseCoral
+                        )
                     }
                 }
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(30.dp))
+        // 3. Quick Action Hub (3 Big, tactile, spring-bounce buttons)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Cash Deposit
+            BouncyDashboardActionButton(
+                icon = Icons.Default.AddCard,
+                label = Strings.quickDeposit(currentLanguage),
+                bgColor = DepositGreenContainer,
+                iconColor = DepositGreen,
+                borderColor = DepositGreenBorder,
+                onClick = onQuickDeposit,
+                modifier = Modifier.weight(1f),
+                testTag = "btn_quick_deposit"
+            )
+
+            // Bazar Cost
+            BouncyDashboardActionButton(
+                icon = Icons.Default.ShoppingCart,
+                label = Strings.quickBazar(currentLanguage),
+                bgColor = ExpenseCoralContainer,
+                iconColor = ExpenseCoral,
+                borderColor = ExpenseCoralBorder,
+                onClick = onQuickBazar,
+                modifier = Modifier.weight(1f),
+                testTag = "btn_quick_bazar"
+            )
+
+            // Daily Meals
+            BouncyDashboardActionButton(
+                icon = Icons.Default.Restaurant,
+                label = Strings.quickMeal(currentLanguage),
+                bgColor = MealAmberContainer,
+                iconColor = MealAmber,
+                borderColor = MealAmberBorder,
+                onClick = onQuickMeal,
+                modifier = Modifier.weight(1f),
+                testTag = "btn_quick_meal"
+            )
+        }
+
+        // 4. Quick Monthly Overview (Compact 2x2 Clean Metrics Grid)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = PureWhite),
+            border = BorderStroke(1.dp, BorderGray)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = if (currentLanguage == AppLanguage.BN) "চলতি মাসের হিসাব এক নজরে" else "Monthly Overview",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = DarkText
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    // Meal Rate
+                    DashboardMiniMetric(
+                        icon = Icons.Default.Calculate,
+                        iconTint = MealAmber,
+                        iconBg = MealAmberContainer,
+                        label = Strings.mealRate(currentLanguage),
+                        value = "৳${String.format(Locale.US, "%.2f", summary.mealRate)}"
+                    )
+
+                    // Total Meals
+                    DashboardMiniMetric(
+                        icon = Icons.Default.RestaurantMenu,
+                        iconTint = BrandPrimary,
+                        iconBg = BrandPrimaryContainer,
+                        label = Strings.totalMeals(currentLanguage),
+                        value = "${String.format(Locale.US, "%.0f", summary.monthlyMealCount)} ${Strings.mealUnit(currentLanguage)}"
+                    )
+                }
+
+                HorizontalDivider(color = BorderGray)
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    // Total Bazar
+                    DashboardMiniMetric(
+                        icon = Icons.Default.ShoppingBasket,
+                        iconTint = ExpenseCoral,
+                        iconBg = ExpenseCoralContainer,
+                        label = Strings.monthlyBazar(currentLanguage),
+                        value = "৳${String.format(Locale.US, "%,.0f", summary.monthlyBazar)}"
+                    )
+
+                    // Active Members
+                    DashboardMiniMetric(
+                        icon = Icons.Default.People,
+                        iconTint = DepositGreen,
+                        iconBg = DepositGreenContainer,
+                        label = Strings.navMembers(currentLanguage),
+                        value = "${memberStatements.size} জন"
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun DashboardActionButton(
+private fun DashboardMiniMetric(
+    icon: ImageVector,
+    iconTint: Color,
+    iconBg: Color,
+    label: String,
+    value: String
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = GrayText
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = DarkText
+            )
+        }
+    }
+}
+
+@Composable
+private fun BouncyDashboardActionButton(
     icon: ImageVector,
     label: String,
     bgColor: Color,
@@ -444,27 +298,42 @@ private fun DashboardActionButton(
     borderColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    testTag: String
+    testTag: String = ""
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        label = "btn_bounce"
+    )
+
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, color = iconColor),
+                onClick = onClick
+            )
             .testTag(testTag),
+        shape = RoundedCornerShape(16.dp),
         color = bgColor,
-        shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, borderColor)
     ) {
         Column(
             modifier = Modifier
-                .padding(vertical = 14.dp, horizontal = 6.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .padding(vertical = 14.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(PureWhite),
                 contentAlignment = Alignment.Center
@@ -476,10 +345,13 @@ private fun DashboardActionButton(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                ),
                 color = DarkText,
                 maxLines = 1
             )

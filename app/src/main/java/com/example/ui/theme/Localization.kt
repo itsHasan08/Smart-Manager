@@ -76,4 +76,11 @@ object Strings {
 
     // Splash
     fun splashLoading(lang: AppLanguage) = if (lang == AppLanguage.BN) "স্মার্ট ম্যানেজার প্রস্তুত হচ্ছে..." else "Loading Smart Manager..."
+
+    // Account & Profile Setup
+    fun editProfile(lang: AppLanguage) = if (lang == AppLanguage.BN) "মেস ও ম্যানেজার প্রোফাইল" else "Mess & Manager Profile"
+    fun messNameLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "মেসের নাম" else "Mess Name"
+    fun managerNameLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "ম্যানেজারের নাম" else "Manager Name"
+    fun managerPhoneLabel(lang: AppLanguage) = if (lang == AppLanguage.BN) "ম্যানেজারের মোবাইল" else "Manager Mobile"
+    fun profileUpdatedSuccess(lang: AppLanguage) = if (lang == AppLanguage.BN) "প্রোফাইল সফলভাবে সংরক্ষিত হয়েছে!" else "Profile saved successfully!"
 }

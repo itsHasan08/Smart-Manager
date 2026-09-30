@@ -609,3 +609,119 @@ fun AddExpenseDialog(
         }
     )
 }
+
+@Composable
+fun EditMessProfileDialog(
+    profile: com.example.data.model.MessProfile?,
+    currentLanguage: AppLanguage,
+    onDismiss: () -> Unit,
+    onConfirm: (messName: String, managerName: String, phone: String) -> Unit
+) {
+    var messName by remember { mutableStateOf(profile?.messName ?: "") }
+    var managerName by remember { mutableStateOf(profile?.managerName ?: "") }
+    var phone by remember { mutableStateOf(profile?.managerPhone ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(BrandPrimaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        tint = BrandPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = Strings.editProfile(currentLanguage),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = DarkText
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = if (currentLanguage == AppLanguage.BN) 
+                        "আপনার মেসের নাম ও ম্যানেজারের মোবাইল নম্বর সেট করুন:" 
+                    else 
+                        "Configure your mess name and manager contact details:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = GrayText
+                )
+
+                OutlinedTextField(
+                    value = messName,
+                    onValueChange = { messName = it },
+                    label = { Text(Strings.messNameLabel(currentLanguage)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BrandPrimary,
+                        unfocusedBorderColor = BorderGray
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("input_mess_name")
+                )
+
+                OutlinedTextField(
+                    value = managerName,
+                    onValueChange = { managerName = it },
+                    label = { Text(Strings.managerNameLabel(currentLanguage)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BrandPrimary,
+                        unfocusedBorderColor = BorderGray
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("input_manager_name")
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(Strings.managerPhoneLabel(currentLanguage)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BrandPrimary,
+                        unfocusedBorderColor = BorderGray
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("input_manager_phone")
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (messName.isNotBlank() && managerName.isNotBlank()) {
+                        onConfirm(messName.trim(), managerName.trim(), phone.trim())
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.testTag("btn_save_profile")
+            ) {
+                Text(Strings.save(currentLanguage), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(Strings.cancel(currentLanguage), color = GrayText) }
+        }
+    )
+}

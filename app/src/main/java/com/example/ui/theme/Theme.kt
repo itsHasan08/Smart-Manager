@@ -1,31 +1,32 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val RedWhiteColorScheme = lightColorScheme(
-    primary = RedPrimary,
-    onPrimary = RedOnPrimary,
-    primaryContainer = RedPrimaryContainer,
-    onPrimaryContainer = RedOnPrimaryContainer,
-    secondary = RedPrimaryDark,
+private val ModernCleanColorScheme = lightColorScheme(
+    primary = BrandPrimary,
+    onPrimary = BrandOnPrimary,
+    primaryContainer = BrandPrimaryContainer,
+    onPrimaryContainer = BrandOnPrimaryContainer,
+    secondary = BrandPrimaryLight,
     onSecondary = PureWhite,
-    secondaryContainer = RedPrimaryContainer,
-    onSecondaryContainer = RedOnPrimaryContainer,
-    tertiary = RedPrimary,
+    secondaryContainer = BrandPrimaryContainer,
+    onSecondaryContainer = BrandOnPrimaryContainer,
+    tertiary = DepositGreen,
     onTertiary = PureWhite,
-    background = PureWhite,
+    tertiaryContainer = DepositGreenContainer,
+    onTertiaryContainer = DepositGreen,
+    background = OffWhite,
     onBackground = DarkText,
     surface = PureWhite,
     onSurface = DarkText,
-    surfaceVariant = LightGray,
+    surfaceVariant = SurfaceGray,
     onSurfaceVariant = GrayText,
     outline = BorderGray,
     outlineVariant = BorderGray,
-    error = DueRed,
-    errorContainer = DueRedContainer
+    error = ExpenseCoral,
+    errorContainer = ExpenseCoralContainer
 )
 
 @Composable
@@ -35,7 +36,7 @@ fun MyApplicationTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = RedWhiteColorScheme,
+        colorScheme = ModernCleanColorScheme,
         typography = Typography,
         content = content
     )
