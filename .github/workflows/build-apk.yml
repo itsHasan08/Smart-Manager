@@ -23,45 +23,40 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Restore Keystore and Environment
+      - name: Accept Android SDK Licenses
         run: |
-          # Decode base64 debug.keystore if available
-          if [ -f "debug.keystore.base64" ] && [ ! -f "debug.keystore" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+
+      - name: Prepare Environment
+        run: |
+          # If keystore is missing for any reason, restore from base64
+          if [ ! -f "debug.keystore" ] && [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
-          # Fallback: create debug keystore if still missing
-          if [ ! -f "debug.keystore" ]; then
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
-          fi
-          # Ensure dummy .env file exists for secrets plugin
           touch .env
-          chmod +x gradlew || true
+          chmod +x gradlew
 
       - name: Build APK with Gradle
-        run: ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Smart-Manager-Lite-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         continue-on-error: true
-        if: success()
         with:
           tag_name: v2.0-lite
           name: Smart Manager Lite v2.0
           draft: false
           prerelease: false
           body: |
-            ## Smart Manager Lite v2.0 (Official Release)
+            ## Smart Manager Lite v2.0
             
-            ✅ **Features & Fixes**:
+            ✅ **Features**:
             - Separated Cash Ledger (নগদ জমা) & Member Management (সদস্যবৃন্দ)
             - Itemized Bazar entries with dynamic quantity and automatic total price calculation
             - Full-sized Red & White App Launcher Icon
@@ -69,7 +64,7 @@ jobs:
             - English startup animation text ("Smart Manager")
             - Offline-first Room Database architecture
             
-            📥 **Download**: Download the attached `app-debug.apk` file below and install on your phone.
-          files: app/build/outputs/apk/debug/*.apk
+            📥 **Download**: Download the attached `app-debug.apk` below and install on Android.
+          files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
