@@ -21,13 +21,27 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+          cache: 'gradle'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Restore Keystore and Environment
+        run: |
+          # Decode base64 debug.keystore if available
+          if [ -f "debug.keystore.base64" ] && [ ! -f "debug.keystore" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore || true
+          fi
+          # Fallback: create debug keystore if still missing
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
+          fi
+          # Ensure dummy .env file exists for secrets plugin
+          touch .env
+          chmod +x gradlew || true
 
       - name: Build APK with Gradle
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
@@ -37,23 +51,25 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        continue-on-error: true
+        if: success()
         with:
-          tag_name: v2.0
+          tag_name: v2.0-lite
           name: Smart Manager Lite v2.0
           draft: false
           prerelease: false
           body: |
-            ## Smart Manager Lite (v2.0)
+            ## Smart Manager Lite v2.0 (Official Release)
             
-            ✅ **Features**:
-            - Separated Cash Ledger & Member Management
-            - Dynamic Itemized Bazar with auto price calculation
-            - Full Screen Red & White App Icon
-            - Clear Status Bar (Battery, Clock & WiFi visibility)
-            - 100% Bilingual support (Bangla & English)
+            ✅ **Features & Fixes**:
+            - Separated Cash Ledger (নগদ জমা) & Member Management (সদস্যবৃন্দ)
+            - Itemized Bazar entries with dynamic quantity and automatic total price calculation
+            - Full-sized Red & White App Launcher Icon
+            - Clear Status Bar (Battery, Clock & Network always visible without background obstruction)
+            - English startup animation text ("Smart Manager")
+            - Offline-first Room Database architecture
             
-            📥 **Download**: Download the attached `.apk` file below and install on Android.
+            📥 **Download**: Download the attached `app-debug.apk` file below and install on your phone.
           files: app/build/outputs/apk/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
