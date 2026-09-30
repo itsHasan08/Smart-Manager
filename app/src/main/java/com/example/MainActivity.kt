@@ -1,7 +1,9 @@
 package com.example
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -34,7 +36,16 @@ enum class AppSubScreen {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(
+                Color.TRANSPARENT,
+                Color.TRANSPARENT
+            ),
+            navigationBarStyle = SystemBarStyle.light(
+                Color.TRANSPARENT,
+                Color.TRANSPARENT
+            )
+        )
         setContent {
             MyApplicationTheme {
                 SmartMessApp()
@@ -215,6 +226,20 @@ fun SmartMessApp(viewModel: MessViewModel = viewModel()) {
                                     currentLanguage = currentLanguage,
                                     onAddDepositClick = { showAddDepositDialog = true },
                                     onAddExpenseClick = { showAddExpenseDialog = true }
+                                )
+
+                                4 -> MemberManagementScreen(
+                                    memberStatements = memberStatements,
+                                    currentLanguage = currentLanguage,
+                                    onMemberClick = { memberId ->
+                                        selectedDetailMemberId = memberId
+                                        currentSubScreen = AppSubScreen.MEMBER_DETAIL
+                                    },
+                                    onAddMemberClick = { showAddMemberDialog = true },
+                                    onRecordDepositClick = { member ->
+                                        depositPreselectedMemberId = member.id
+                                        showAddDepositDialog = true
+                                    }
                                 )
                             }
                         }

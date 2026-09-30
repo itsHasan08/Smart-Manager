@@ -75,10 +75,10 @@ fun AppSplashScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = Strings.appName(currentLanguage),
+                text = "Smart Manager",
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 24.sp
+                    fontSize = 26.sp
                 ),
                 color = DarkText
             )
@@ -86,7 +86,7 @@ fun AppSplashScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = Strings.appTagline(currentLanguage),
+                text = "Simple & Transparent Mess Solution",
                 style = MaterialTheme.typography.bodyMedium,
                 color = GrayText
             )

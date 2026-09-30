@@ -13,7 +13,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.messmanager.kpzt"
+    applicationId = "com.smart.manager.lite"
     minSdk = 24
     targetSdk = 36
     versionCode = 1

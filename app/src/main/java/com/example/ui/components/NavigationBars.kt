@@ -242,11 +242,31 @@ fun MainBottomNav(
                 onClick = { onTabSelected(3) },
                 icon = {
                     Icon(
-                        if (selectedTab == 3) Icons.Filled.People else Icons.Outlined.People,
+                        if (selectedTab == 3) Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet,
+                        contentDescription = Strings.navCash(currentLanguage)
+                    )
+                },
+                label = { Text(Strings.navCash(currentLanguage), fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal, fontSize = 11.sp) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = RedPrimary,
+                    selectedTextColor = RedPrimary,
+                    indicatorColor = RedPrimaryContainer,
+                    unselectedIconColor = GrayText,
+                    unselectedTextColor = GrayText
+                ),
+                modifier = Modifier.testTag("nav_cash")
+            )
+
+            NavigationBarItem(
+                selected = selectedTab == 4,
+                onClick = { onTabSelected(4) },
+                icon = {
+                    Icon(
+                        if (selectedTab == 4) Icons.Filled.People else Icons.Outlined.People,
                         contentDescription = Strings.navMembers(currentLanguage)
                     )
                 },
-                label = { Text(Strings.navMembers(currentLanguage), fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal) },
+                label = { Text(Strings.navMembers(currentLanguage), fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal, fontSize = 11.sp) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = RedPrimary,
                     selectedTextColor = RedPrimary,
