@@ -10,11 +10,16 @@ permissions:
 
 jobs:
   build:
+    name: Build & Publish Release APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -27,57 +32,87 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
 
-      - name: Prepare Environment
+      - name: Prepare Android Keystore & Environment
         run: |
-          # If keystore is missing for any reason, restore from base64
-          if [ ! -f "debug.keystore" ] && [ -f "debug.keystore.base64" ]; then
+          # If keystore exists as base64, decode it
+          if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
+          
+          # If debug.keystore is still missing, generate one so Gradle signing never fails
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkey -v -keystore debug.keystore -alias androiddebugkey \
+              -keypass android -storepass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
+          fi
+          
           touch .env
-          chmod +x gradlew
+          
+          # Ensure gradlew executable permission
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          elif [ -f "./applet/gradlew" ]; then
+            chmod +x ./applet/gradlew
+          fi
 
       - name: Build APK with Gradle
-        id: gradle_build
         run: |
-          set -o pipefail
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.log
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace
+          elif [ -f "./applet/gradlew" ]; then
+            cd applet && ./gradlew assembleDebug --stacktrace && cd ..
+          fi
 
-      - name: Show Error Logs on Failure
-        if: failure()
+      - name: Locate & Rename APK
+        id: locate_apk
         run: |
-          echo "### ❌ Gradle Build Failure Details" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 80 build_output.log >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          APK_FILE=$(find . -name "*.apk" -path "*/outputs/apk/debug/*" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "❌ No debug APK found!"
+            exit 1
+          fi
+          echo "Found APK at: $APK_FILE"
+          mkdir -p release_assets
+          cp "$APK_FILE" release_assets/Smart-Manager-v2.2.apk
+          echo "apk_path=release_assets/Smart-Manager-v2.2.apk" >> $GITHUB_OUTPUT
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
-        if: success()
         with:
-          name: Smart-Manager-Lite-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Smart-Manager-v2.2-APK
+          path: ${{ steps.locate_apk.outputs.apk_path }}
 
-      - name: Create GitHub Release
+      - name: Create Dynamic Release Tag & Name
+        id: release_info
+        run: |
+          TAG="v2.2.${{ github.run_number }}"
+          echo "tag_name=${TAG}" >> $GITHUB_OUTPUT
+          echo "release_title=Smart Manager Release ${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
-        continue-on-error: true
-        if: success()
         with:
-          tag_name: v2.0-lite
-          name: Smart Manager Lite v2.0
+          tag_name: ${{ steps.release_info.outputs.tag_name }}
+          name: ${{ steps.release_info.outputs.release_title }}
           draft: false
           prerelease: false
+          make_latest: true
           body: |
-            ## Smart Manager Lite v2.0
-            
-            ✅ **Features**:
-            - Separated Cash Ledger (নগদ জমা) & Member Management (সদস্যবৃন্দ)
-            - Itemized Bazar entries with dynamic quantity and automatic total price calculation
-            - Full-sized Red & White App Launcher Icon
-            - Clear Status Bar (Battery, Clock & Network always visible without background obstruction)
-            - English startup animation text ("Smart Manager")
-            - Offline-first Room Database architecture
-            
-            📥 **Download**: Download the attached `app-debug.apk` below and install on Android.
-          files: app/build/outputs/apk/debug/app-debug.apk
+            ## 📱 Smart Mess Manager Release ${{ steps.release_info.outputs.tag_name }}
+
+            ### 🚀 Updates & New Features:
+            - 👑 **নতুন প্রফেশনাল ম্যানেজার আইকন**: অক্ষরের বদলে আসল মেস ম্যানেজারের পূর্ণাঙ্গ ৩ডি গ্রাফিক্যাল লঞ্চার আইকন।
+            - 🔐 **সাইন-আপ ও লগইন সিস্টেম**: ম্যানেজার ও মেম্বারদের জন্য মোবাইল + ৪-সংখ্যার পিন দিয়ে অথেন্টিকেশন।
+            - 🍽️ **মেম্বারের নিজের খাবার নিয়ন্ত্রণ**: মেম্বার শুধুমাত্র তার নিজের খাবার (সকাল, দুপুর, রাত, গেস্ট) চালু বা বন্ধ করতে পারবে।
+            - 👑 **ম্যানেজারের নিজস্ব মিল কন্ট্রোল**: মিল শিটের ওপরে ম্যানেজারের নিজের খাবার চালু/বন্ধ করার আলাদা কার্ড।
+            - 🗑️ **রিসাইকেল বিন ও হিস্টোরি রিস্টোর**: ভুলবশত মুছে যাওয়া বাজার বা নগদ জমা এক ক্লিকে রিস্টোর করার ব্যাকআপ সিস্টেম।
+            - 📊 **একক ভাষা পরিবর্তন অপশন**: ড্যাশবোর্ডে একক পরিচ্ছন্ন 'বাংলা / EN' বাটন।
+            - ⚪ **পিওর হোয়াইট ও হাই-কন্ট্রাস্ট**: ওপরের চার্জিং/ব্যাটারি বারসহ সম্পূর্ণ অ্যাপ পিওর হোয়াইট ব্যাকগ্রাউন্ডে স্পষ্ট টেক্সট।
+            - 💵 **টাকা জমা সম্পূর্ণ পৃথক**: সদস্যবৃন্দ পেজ থেকে টাকা জমার অপশন সরিয়ে কঠোরভাবে 'নগদ জমা' ট্যাবে রাখা হয়েছে।
+
+            ---
+            📥 **ডাউনলোড ও ইনস্টলেশন**:
+            নিচের **Assets** থেকে `Smart-Manager-v2.2.apk` ফাইলে ক্লিক করে আপনার অ্যান্ড্রয়েড ফোনে ডাউনলোড ও ইনস্টল করুন।
+          files: ${{ steps.locate_apk.outputs.apk_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

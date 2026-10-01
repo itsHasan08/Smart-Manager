@@ -110,6 +110,7 @@ fun SmartMessApp(viewModel: MessViewModel = viewModel()) {
     var deletingMember by remember { mutableStateOf<Member?>(null) }
 
     val activeMemberName = allMembers.find { it.id == currentMemberId }?.name ?: "সদস্য"
+    val isManager = currentRole == CurrentRole.ADMIN
 
     // Back handling
     if (drawerState.isOpen) {
@@ -129,19 +130,25 @@ fun SmartMessApp(viewModel: MessViewModel = viewModel()) {
 
     Box(modifier = Modifier.fillMaxSize().background(PureWhite)) {
         if (!isLoggedIn) {
-            // Authentication: Login & Sign Up Flow
+            // Authentication: Login & Sign Up Flow + Mess Onboarding
             AuthScreen(
                 profile = messProfile,
                 members = allMembers,
                 currentLanguage = currentLanguage,
-                onLoginManager = { phone, pin ->
-                    viewModel.loginAsManager(phone, pin)
+                onLoginSuccess = { phone, pass ->
+                    viewModel.loginWithPhonePassword(phone, pass)
                 },
-                onLoginMember = { memberId, pin ->
-                    viewModel.loginAsMember(memberId, pin)
+                onRegisterSuccess = { name, phone, pass ->
+                    viewModel.registerUserAccount(name, phone, pass)
                 },
-                onCreateMess = { messName, managerName, phone, pin ->
-                    viewModel.createMessAccount(messName, managerName, phone, pin)
+                onGoogleAuth = {
+                    viewModel.loginWithGoogle()
+                },
+                onCreateMess = { mName, mAddr, mPhone, photo ->
+                    viewModel.createMess(mName, mAddr, mPhone, photo)
+                },
+                onJoinMess = { uid, pass ->
+                    viewModel.joinMessWithCredentials(uid, pass) != null
                 }
             )
         } else {

@@ -33,8 +33,9 @@ import java.util.Locale
 fun MemberManagementScreen(
     memberStatements: List<MemberStatement>,
     currentLanguage: AppLanguage,
+    isManager: Boolean = true,
     onMemberClick: (Long) -> Unit,
-    onAddMemberClick: () -> Unit,
+    onAddMemberClick: () -> Unit = {},
     onRecordDepositClick: (Member) -> Unit = {},
     onEditMemberClick: (Member) -> Unit = {},
     onDeleteMemberClick: (Member) -> Unit = {}
@@ -50,14 +51,16 @@ fun MemberManagementScreen(
     Scaffold(
         containerColor = PureWhite,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddMemberClick,
-                containerColor = BrandPrimary,
-                contentColor = PureWhite,
-                shape = CircleShape,
-                modifier = Modifier.testTag("add_member_fab")
-            ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = Strings.addMember(currentLanguage))
+            if (isManager) {
+                FloatingActionButton(
+                    onClick = onAddMemberClick,
+                    containerColor = BrandPrimary,
+                    contentColor = PureWhite,
+                    shape = CircleShape,
+                    modifier = Modifier.testTag("add_member_fab")
+                ) {
+                    Icon(Icons.Default.PersonAdd, contentDescription = Strings.addMember(currentLanguage))
+                }
             }
         }
     ) { padding ->
@@ -71,34 +74,35 @@ fun MemberManagementScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Prominent Top Add Member Banner
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAddMemberClick() },
-                shape = RoundedCornerShape(14.dp),
-                color = BrandPrimaryContainer,
-                border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            // Prominent Top Add Member Banner (Manager only)
+            if (isManager) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAddMemberClick() },
+                    shape = RoundedCornerShape(14.dp),
+                    color = BrandPrimaryContainer,
+                    border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.3f))
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = null, tint = BrandPrimary)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "+ নতুন সদস্য যুক্ত করুন",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = BrandPrimary
-                        )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, tint = BrandPrimary)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "+ নতুন সদস্য ও লাইসেন্স তৈরি করুন",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = BrandPrimary
+                            )
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BrandPrimary)
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BrandPrimary)
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             // Search Bar
             OutlinedTextField(
@@ -138,6 +142,7 @@ fun MemberManagementScreen(
                         MemberAccountCard(
                             statement = stmt,
                             currentLanguage = currentLanguage,
+                            isManager = isManager,
                             onCardClick = { onMemberClick(stmt.member.id) },
                             onEditClick = { onEditMemberClick(stmt.member) },
                             onDeleteClick = { onDeleteMemberClick(stmt.member) }
@@ -153,11 +158,13 @@ fun MemberManagementScreen(
 fun MemberAccountCard(
     statement: MemberStatement,
     currentLanguage: AppLanguage,
+    isManager: Boolean = true,
     onCardClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     val member = statement.member
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Card(
         modifier = Modifier
@@ -213,29 +220,38 @@ fun MemberAccountCard(
                             }
                         }
                         Text(
-                            text = "রুম: ${member.roomNumber} (${member.bedNumber}) • 📞 ${member.phone}",
+                            text = "রুম: ${member.roomNumber} • 📞 ${member.phone}",
                             style = MaterialTheme.typography.bodySmall,
                             color = GrayText
                         )
+                        if (member.homeAddress.isNotBlank()) {
+                            Text(
+                                text = "ঠিকানা: ${member.homeAddress}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = GrayText
+                            )
+                        }
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Edit button
-                    IconButton(
-                        onClick = onEditClick,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = BrandPrimary, modifier = Modifier.size(18.dp))
-                    }
-
-                    // Delete button (Disabled for Admin)
-                    if (member.role != "ADMIN") {
+                if (isManager) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Edit button
                         IconButton(
-                            onClick = onDeleteClick,
+                            onClick = onEditClick,
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = DueRed, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = BrandPrimary, modifier = Modifier.size(18.dp))
+                        }
+
+                        // Delete button (Disabled for Admin)
+                        if (member.role != "ADMIN") {
+                            IconButton(
+                                onClick = onDeleteClick,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = DueRed, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
@@ -245,20 +261,36 @@ fun MemberAccountCard(
             HorizontalDivider(color = BorderGray)
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Account details: PIN and Meals
+            // Member License Credentials & Total Meals
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🔑 লগইন পিন: ${member.pin}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = GrayText
-                )
+                val displayUid = member.userId.ifBlank { "USER-${member.id}" }
+                val displayPwd = member.password.ifBlank { member.pin }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "🔑 আইডি: $displayUid | পাস: $displayPwd",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = BrandPrimary
+                    )
+                    IconButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Member Login", "ইউজার আইডি: $displayUid\nপাসওয়ার্ড: $displayPwd")
+                            clipboard.setPrimaryClip(clip)
+                            android.widget.Toast.makeText(context, "আইডি ও পাসওয়ার্ড কপি হয়েছে!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = BrandPrimary, modifier = Modifier.size(14.dp))
+                    }
+                }
 
                 Text(
-                    text = "মোট মিল: ${String.format(Locale.US, "%.0f", statement.mealCount)} টি",
+                    text = "মোট: ${String.format(Locale.US, "%.0f", statement.mealCount)} মিল",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                     color = DarkText
                 )

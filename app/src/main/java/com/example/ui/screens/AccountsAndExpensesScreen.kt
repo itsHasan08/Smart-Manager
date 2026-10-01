@@ -30,7 +30,8 @@ fun AccountsAndExpensesScreen(
     members: List<Member>,
     messSummary: MessSummary,
     currentLanguage: AppLanguage,
-    onAddDepositClick: () -> Unit,
+    isManager: Boolean = true,
+    onAddDepositClick: () -> Unit = {},
     onAddExpenseClick: () -> Unit = {},
     onEditDepositClick: (DepositEntry) -> Unit = {},
     onDeleteDepositClick: (DepositEntry) -> Unit = {}
@@ -48,17 +49,19 @@ fun AccountsAndExpensesScreen(
     Scaffold(
         containerColor = PureWhite,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddDepositClick,
-                containerColor = DepositGreen,
-                contentColor = PureWhite,
-                shape = CircleShape,
-                modifier = Modifier.testTag("accounts_fab")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "নগদ জমা নিন"
-                )
+            if (isManager) {
+                FloatingActionButton(
+                    onClick = onAddDepositClick,
+                    containerColor = DepositGreen,
+                    contentColor = PureWhite,
+                    shape = CircleShape,
+                    modifier = Modifier.testTag("accounts_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "নগদ জমা নিন"
+                    )
+                }
             }
         }
     ) { padding ->
@@ -214,32 +217,34 @@ fun AccountsAndExpensesScreen(
                                         color = DepositGreen
                                     )
 
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    if (isManager) {
+                                        Spacer(modifier = Modifier.width(6.dp))
 
-                                    // Edit Button
-                                    IconButton(
-                                        onClick = { onEditDepositClick(item) },
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Edit,
-                                            contentDescription = "Edit",
-                                            tint = BrandPrimary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                        // Edit Button
+                                        IconButton(
+                                            onClick = { onEditDepositClick(item) },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Edit",
+                                                tint = BrandPrimary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
 
-                                    // Delete Button
-                                    IconButton(
-                                        onClick = { onDeleteDepositClick(item) },
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.DeleteOutline,
-                                            contentDescription = "Delete",
-                                            tint = DueRed,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                        // Delete Button
+                                        IconButton(
+                                            onClick = { onDeleteDepositClick(item) },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.DeleteOutline,
+                                                contentDescription = "Delete",
+                                                tint = DueRed,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }

@@ -23,56 +23,69 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Member
 import com.example.data.model.MessProfile
 import com.example.ui.theme.*
 
-enum class AuthMode {
+enum class AuthStage {
+    ACCOUNT_AUTH, // Step 1: Login or Sign Up
+    MESS_GATE     // Step 2: Create Mess or Enter Mess
+}
+
+enum class AccountMode {
     LOGIN,
     SIGN_UP
 }
 
-enum class LoginType {
-    MANAGER,
-    MEMBER
+enum class MessAction {
+    CREATE_MESS,
+    ENTER_MESS
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
     profile: MessProfile?,
     members: List<Member>,
     currentLanguage: AppLanguage,
-    onLoginManager: (phone: String, pin: String) -> Unit,
-    onLoginMember: (memberId: Long, pin: String) -> Unit,
-    onCreateMess: (messName: String, managerName: String, phone: String, pin: String) -> Unit
+    onLoginSuccess: (phone: String, pass: String) -> Unit,
+    onRegisterSuccess: (name: String, phone: String, pass: String) -> Unit,
+    onGoogleAuth: () -> Unit,
+    onCreateMess: (messName: String, address: String, phone: String, photoUri: String?) -> Unit,
+    onJoinMess: (userId: String, pass: String) -> Boolean
 ) {
     val context = LocalContext.current
-    var authMode by remember {
-        mutableStateOf(if (profile == null) AuthMode.SIGN_UP else AuthMode.LOGIN)
-    }
-    var loginType by remember { mutableStateOf(LoginType.MANAGER) }
 
-    // Sign Up Fields
-    var signUpMessName by remember { mutableStateOf("") }
-    var signUpManagerName by remember { mutableStateOf("") }
-    var signUpPhone by remember { mutableStateOf("") }
-    var signUpPin by remember { mutableStateOf("1234") }
+    // If mess already exists and user wants to switch / login, stay on stage
+    var currentStage by remember { mutableStateOf(AuthStage.ACCOUNT_AUTH) }
+    var accountMode by remember { mutableStateOf(AccountMode.LOGIN) }
+    var messAction by remember { mutableStateOf(MessAction.CREATE_MESS) }
 
-    // Login Fields
-    var loginPhone by remember { mutableStateOf(profile?.managerPhone ?: "") }
-    var loginPin by remember { mutableStateOf("") }
-    var selectedMemberId by remember { mutableStateOf(members.firstOrNull { it.role != "ADMIN" }?.id ?: members.firstOrNull()?.id ?: 0L) }
-    var memberDropdownExpanded by remember { mutableStateOf(false) }
+    // Step 1: Login / Sign Up Fields
+    var authPhone by remember { mutableStateOf("") }
+    var authPassword by remember { mutableStateOf("") }
+    var authName by remember { mutableStateOf("") }
+    var authConfirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    // Step 2: Create Mess Fields
+    var messName by remember { mutableStateOf("") }
+    var messAddress by remember { mutableStateOf("") }
+    var messPhone by remember { mutableStateOf(authPhone.ifBlank { profile?.managerPhone ?: "" }) }
+    var selectedPhotoPreset by remember { mutableStateOf("apartment") }
+
+    // Step 2: Enter Mess Fields
+    var enterUserId by remember { mutableStateOf("") }
+    var enterPassword by remember { mutableStateOf("") }
 
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .background(OffWhite)
+            .background(PureWhite)
             .testTag("auth_screen"),
-        color = OffWhite
+        color = PureWhite
     ) {
         Box(
             modifier = Modifier
@@ -87,7 +100,7 @@ fun AuthScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = PureWhite),
                 border = BorderStroke(1.dp, BorderGray),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -96,319 +109,488 @@ fun AuthScreen(
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // App Logo Icon
+                    // Modern App Logo Badge
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
+                            .size(64.dp)
                             .clip(CircleShape)
                             .background(BrandPrimaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Apartment,
+                            imageVector = if (currentStage == AuthStage.ACCOUNT_AUTH) Icons.Default.LockPerson else Icons.Default.Apartment,
                             contentDescription = null,
                             tint = BrandPrimary,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(34.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = if (currentLanguage == AppLanguage.BN) "স্মার্ট মেস ম্যানেজার" else "Smart Mess Manager",
+                        text = if (currentStage == AuthStage.ACCOUNT_AUTH) {
+                            if (accountMode == AccountMode.LOGIN) "স্মার্ট মেসে লগইন করুন" else "নতুন অ্যাকাউন্ট তৈরি করুন"
+                        } else {
+                            if (messAction == MessAction.CREATE_MESS) "নতুন মেস তৈরি করুন" else "মেসে প্রবেশ করুন"
+                        },
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 22.sp
+                            fontSize = 21.sp
                         ),
                         color = DarkText
                     )
+
                     Text(
-                        text = if (currentLanguage == AppLanguage.BN) "সহজ, স্বচ্ছ ও ঝামেলামুক্ত মেস হিসাব" else "Simple & Transparent Mess Accounts",
+                        text = if (currentStage == AuthStage.ACCOUNT_AUTH)
+                            "সহজ, স্বচ্ছ ও স্মার্ট মেস হিসাব ব্যবস্থা"
+                        else
+                            "আপনার মেস বেছে নিন অথবা আইডিসহ প্রবেশ করুন",
                         style = MaterialTheme.typography.bodySmall,
                         color = GrayText
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Mode Switch Tabs (লগইন / নতুন মেস একাউন্ট)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SurfaceGray)
-                            .padding(4.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { authMode = AuthMode.LOGIN },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (authMode == AuthMode.LOGIN) PureWhite else SurfaceGray,
-                            border = if (authMode == AuthMode.LOGIN) BorderStroke(1.dp, BorderGray) else null
-                        ) {
-                            Text(
-                                text = if (currentLanguage == AppLanguage.BN) "লগইন করুন" else "Log In",
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = if (authMode == AuthMode.LOGIN) BrandPrimary else GrayText,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { authMode = AuthMode.SIGN_UP },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (authMode == AuthMode.SIGN_UP) PureWhite else SurfaceGray,
-                            border = if (authMode == AuthMode.SIGN_UP) BorderStroke(1.dp, BorderGray) else null
-                        ) {
-                            Text(
-                                text = if (currentLanguage == AppLanguage.BN) "নতুন মেস অ্যাকাউন্ট" else "New Mess",
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = if (authMode == AuthMode.SIGN_UP) BrandPrimary else GrayText,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    if (authMode == AuthMode.LOGIN) {
-                        // Manager vs Member Toggle
+                    // ---------------- STEP 1: ACCOUNT AUTH (LOGIN OR SIGN UP) ----------------
+                    if (currentStage == AuthStage.ACCOUNT_AUTH) {
+                        // Clean Tab Switcher (লগইন / অ্যাকাউন্ট খুলুন)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SurfaceGray)
+                                .padding(4.dp)
                         ) {
-                            FilterChip(
-                                selected = loginType == LoginType.MANAGER,
-                                onClick = { loginType = LoginType.MANAGER },
-                                label = { Text(if (currentLanguage == AppLanguage.BN) "👑 ম্যানেজার লগইন" else "Manager Mode") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = BrandPrimaryContainer,
-                                    selectedLabelColor = BrandPrimary
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = loginType == LoginType.MEMBER,
-                                onClick = { loginType = LoginType.MEMBER },
-                                label = { Text(if (currentLanguage == AppLanguage.BN) "👤 সদস্য লগইন" else "Member Mode") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = DepositGreenContainer,
-                                    selectedLabelColor = DepositGreen
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        if (loginType == LoginType.MANAGER) {
-                            // Manager Login Fields
-                            OutlinedTextField(
-                                value = loginPhone,
-                                onValueChange = { loginPhone = it },
-                                label = { Text(if (currentLanguage == AppLanguage.BN) "ম্যানেজারের মোবাইল নম্বর" else "Manager Phone Number") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth().testTag("login_manager_phone")
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            OutlinedTextField(
-                                value = loginPin,
-                                onValueChange = { loginPin = it },
-                                label = { Text(if (currentLanguage == AppLanguage.BN) "৪-সংখ্যার পিন (ডিফল্ট: 1234)" else "4-digit PIN (default: 1234)") },
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth().testTag("login_manager_pin")
-                            )
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            Button(
-                                onClick = {
-                                    if (loginPin.isNotBlank()) {
-                                        onLoginManager(loginPhone, loginPin)
-                                    } else {
-                                        Toast.makeText(context, "অনুগ্রহ করে পিন লিখুন (যেমন: 1234)", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
+                            Surface(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("btn_manager_login"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite)
+                                    .weight(1f)
+                                    .clickable { accountMode = AccountMode.LOGIN },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (accountMode == AccountMode.LOGIN) PureWhite else SurfaceGray,
+                                border = if (accountMode == AccountMode.LOGIN) BorderStroke(1.dp, BorderGray) else null
                             ) {
-                                Icon(Icons.Default.Login, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (currentLanguage == AppLanguage.BN) "ম্যানেজার হিসেবে প্রবেশ করুন" else "Log In as Manager",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
+                                    text = "লগইন করুন",
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (accountMode == AccountMode.LOGIN) BrandPrimary else GrayText,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
-                        } else {
-                            // Member Login Fields
-                            val selectedMember = members.find { it.id == selectedMemberId } ?: members.firstOrNull()
 
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    value = selectedMember?.name ?: "",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(if (currentLanguage == AppLanguage.BN) "সদস্য নির্বাচন করুন" else "Select Member") },
-                                    trailingIcon = {
-                                        IconButton(onClick = { memberDropdownExpanded = true }) {
-                                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { memberDropdownExpanded = true }
-                                )
-
-                                DropdownMenu(
-                                    expanded = memberDropdownExpanded,
-                                    onDismissRequest = { memberDropdownExpanded = false },
-                                    modifier = Modifier.background(PureWhite)
-                                ) {
-                                    members.forEach { m ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Column {
-                                                    Text(m.name, fontWeight = FontWeight.Bold, color = DarkText)
-                                                    Text("রুম: ${m.roomNumber} • ${m.phone}", style = MaterialTheme.typography.labelSmall, color = GrayText)
-                                                }
-                                            },
-                                            onClick = {
-                                                selectedMemberId = m.id
-                                                memberDropdownExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            OutlinedTextField(
-                                value = loginPin,
-                                onValueChange = { loginPin = it },
-                                label = { Text(if (currentLanguage == AppLanguage.BN) "সদস্যের পিন (ডিফল্ট: 1234)" else "Member PIN (default: 1234)") },
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth().testTag("login_member_pin")
-                            )
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            Button(
-                                onClick = {
-                                    if (selectedMember != null) {
-                                        onLoginMember(selectedMember.id, loginPin)
-                                    } else {
-                                        Toast.makeText(context, "কোন সদস্য পাওয়া যায়নি", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
+                            Surface(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("btn_member_login"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = DepositGreen, contentColor = PureWhite)
+                                    .weight(1f)
+                                    .clickable { accountMode = AccountMode.SIGN_UP },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (accountMode == AccountMode.SIGN_UP) PureWhite else SurfaceGray,
+                                border = if (accountMode == AccountMode.SIGN_UP) BorderStroke(1.dp, BorderGray) else null
                             ) {
-                                Icon(Icons.Default.Person, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (currentLanguage == AppLanguage.BN) "সদস্য হিসেবে প্রবেশ করুন" else "Log In as Member",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
+                                    text = "অ্যাকাউন্ট খুলুন",
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (accountMode == AccountMode.SIGN_UP) BrandPrimary else GrayText,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         }
-                    } else {
-                        // Sign Up / Create Mess
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        if (accountMode == AccountMode.SIGN_UP) {
+                            // Name Field
+                            OutlinedTextField(
+                                value = authName,
+                                onValueChange = { authName = it },
+                                label = { Text("আপনার পুরো নাম *") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("signup_name_field")
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        // Phone Number
                         OutlinedTextField(
-                            value = signUpMessName,
-                            onValueChange = { signUpMessName = it },
-                            label = { Text(if (currentLanguage == AppLanguage.BN) "মেসের নাম *" else "Mess Name *") },
-                            placeholder = { Text(if (currentLanguage == AppLanguage.BN) "যেমন: শান্তি নিবাস মেস" else "e.g. Green Valley Mess") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().testTag("signup_mess_name")
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = signUpManagerName,
-                            onValueChange = { signUpManagerName = it },
-                            label = { Text(if (currentLanguage == AppLanguage.BN) "ম্যানেজারের পুরো নাম *" else "Manager Full Name *") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().testTag("signup_manager_name")
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = signUpPhone,
-                            onValueChange = { signUpPhone = it },
-                            label = { Text(if (currentLanguage == AppLanguage.BN) "ম্যানেজারের মোবাইল নম্বর *" else "Manager Mobile Number *") },
+                            value = authPhone,
+                            onValueChange = { authPhone = it },
+                            label = { Text("মোবাইল নম্বর *") },
+                            placeholder = { Text("017XXXXXXXX") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().testTag("signup_phone")
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = BrandPrimary,
+                                unfocusedBorderColor = BorderGray
+                            ),
+                            modifier = Modifier.fillMaxWidth().testTag("auth_phone_field")
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        // Password
                         OutlinedTextField(
-                            value = signUpPin,
-                            onValueChange = { signUpPin = it },
-                            label = { Text(if (currentLanguage == AppLanguage.BN) "৪-সংখ্যার সিকিউরিটি পিন *" else "4-digit Security PIN *") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            value = authPassword,
+                            onValueChange = { authPassword = it },
+                            label = { Text("পাসওয়ার্ড *") },
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = null,
+                                        tint = GrayText
+                                    )
+                                }
+                            },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().testTag("signup_pin")
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = BrandPrimary,
+                                unfocusedBorderColor = BorderGray
+                            ),
+                            modifier = Modifier.fillMaxWidth().testTag("auth_password_field")
                         )
+
+                        if (accountMode == AccountMode.SIGN_UP) {
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Confirm Password
+                            OutlinedTextField(
+                                value = authConfirmPassword,
+                                onValueChange = { authConfirmPassword = it },
+                                label = { Text("কনফার্ম পাসওয়ার্ড *") },
+                                visualTransformation = PasswordVisualTransformation(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("auth_confirm_password_field")
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(20.dp))
 
+                        // Submit Button
                         Button(
                             onClick = {
-                                if (signUpMessName.isNotBlank() && signUpManagerName.isNotBlank() && signUpPhone.isNotBlank()) {
-                                    onCreateMess(signUpMessName.trim(), signUpManagerName.trim(), signUpPhone.trim(), signUpPin.ifBlank { "1234" })
+                                if (accountMode == AccountMode.LOGIN) {
+                                    if (authPhone.isNotBlank() && authPassword.isNotBlank()) {
+                                        onLoginSuccess(authPhone.trim(), authPassword.trim())
+                                        currentStage = AuthStage.MESS_GATE
+                                    } else {
+                                        Toast.makeText(context, "অনুগ্রহ করে নম্বর ও পাসওয়ার্ড দিন", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else {
-                                    Toast.makeText(context, "অনুগ্রহ করে সকল তথ্য পূরণ করুন", Toast.LENGTH_SHORT).show()
+                                    if (authName.isBlank() || authPhone.isBlank() || authPassword.isBlank()) {
+                                        Toast.makeText(context, "সকল তথ্য পূরণ করুন", Toast.LENGTH_SHORT).show()
+                                    } else if (authPassword != authConfirmPassword) {
+                                        Toast.makeText(context, "পাসওয়ার্ড দুটি মেলেনি", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        onRegisterSuccess(authName.trim(), authPhone.trim(), authPassword.trim())
+                                        currentStage = AuthStage.MESS_GATE
+                                    }
                                 }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
-                                .testTag("btn_create_mess_account"),
+                                .testTag("btn_auth_submit"),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite)
                         ) {
-                            Icon(Icons.Default.AppRegistration, contentDescription = null)
+                            Icon(
+                                imageVector = if (accountMode == AccountMode.LOGIN) Icons.Default.Login else Icons.Default.PersonAdd,
+                                contentDescription = null
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (currentLanguage == AppLanguage.BN) "মেস অ্যাকাউন্ট তৈরি করুন" else "Create Mess Account",
+                                text = if (accountMode == AccountMode.LOGIN) "লগইন করুন" else "অ্যাকাউন্ট তৈরি করুন",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Divider with OR
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            HorizontalDivider(modifier = Modifier.weight(1f), color = BorderGray)
+                            Text(" অথবা ", style = MaterialTheme.typography.labelSmall, color = GrayText)
+                            HorizontalDivider(modifier = Modifier.weight(1f), color = BorderGray)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Google Sign-In Button
+                        OutlinedButton(
+                            onClick = {
+                                onGoogleAuth()
+                                currentStage = AuthStage.MESS_GATE
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .testTag("btn_google_auth"),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, BorderGray)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                tint = BrandPrimary
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "গুগল দিয়ে প্রবেশ করুন (Google)",
+                                fontWeight = FontWeight.Bold,
+                                color = DarkText,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    // ---------------- STEP 2: MESS GATE (CREATE MESS OR ENTER MESS) ----------------
+                    else {
+                        // Switch between Create Mess and Enter Mess
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SurfaceGray)
+                                .padding(4.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { messAction = MessAction.CREATE_MESS },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (messAction == MessAction.CREATE_MESS) PureWhite else SurfaceGray,
+                                border = if (messAction == MessAction.CREATE_MESS) BorderStroke(1.dp, BorderGray) else null
+                            ) {
+                                Text(
+                                    text = "মেস তৈরি করুন",
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (messAction == MessAction.CREATE_MESS) BrandPrimary else GrayText,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { messAction = MessAction.ENTER_MESS },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (messAction == MessAction.ENTER_MESS) PureWhite else SurfaceGray,
+                                border = if (messAction == MessAction.ENTER_MESS) BorderStroke(1.dp, BorderGray) else null
+                            ) {
+                                Text(
+                                    text = "মেসে প্রবেশ করুন",
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (messAction == MessAction.ENTER_MESS) BrandPrimary else GrayText,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        if (messAction == MessAction.CREATE_MESS) {
+                            // CREATE MESS OPTION
+                            OutlinedTextField(
+                                value = messName,
+                                onValueChange = { messName = it },
+                                label = { Text("মেসের নাম *") },
+                                placeholder = { Text("যেমন: শান্তিনিকেতন মেস") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("input_create_mess_name")
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = messAddress,
+                                onValueChange = { messAddress = it },
+                                label = { Text("মেসের ঠিকানা *") },
+                                placeholder = { Text("বাড়ি নং, রোড, এলাকা, শহর") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("input_create_mess_address")
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = messPhone,
+                                onValueChange = { messPhone = it },
+                                label = { Text("ম্যানেজারের ফোন নম্বর *") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("input_create_mess_phone")
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Optional Mess Photo Preset Selector
+                            Text(
+                                text = "মেসের প্রোফাইল ফটো (অপশনাল):",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = DarkText,
+                                modifier = Modifier.align(Alignment.Start)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf(
+                                    "apartment" to "ভবন",
+                                    "home" to "বাড়ি",
+                                    "location_city" to "হোস্টেল"
+                                ).forEach { (key, label) ->
+                                    FilterChip(
+                                        selected = selectedPhotoPreset == key,
+                                        onClick = { selectedPhotoPreset = key },
+                                        label = { Text(label) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = BrandPrimaryContainer,
+                                            selectedLabelColor = BrandPrimary
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Button(
+                                onClick = {
+                                    if (messName.isNotBlank() && messAddress.isNotBlank()) {
+                                        onCreateMess(messName.trim(), messAddress.trim(), messPhone.trim(), selectedPhotoPreset)
+                                        Toast.makeText(context, "মেস সফলভাবে তৈরি হয়েছে!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "মেসের নাম ও ঠিকানা পূরণ করুন", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                                    .testTag("btn_complete_create_mess"),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite)
+                            ) {
+                                Icon(Icons.Default.AddBusiness, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("মেস তৈরি সম্পন্ন করুন", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
+                        } else {
+                            // ENTER MESS AS MEMBER OPTION
+                            OutlinedTextField(
+                                value = enterUserId,
+                                onValueChange = { enterUserId = it },
+                                label = { Text("ইউজার আইডি (User ID) *") },
+                                placeholder = { Text("ম্যানেজার কর্তৃক প্রদত্ত আইডি (যেমন: USER-102)") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("input_enter_user_id")
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = enterPassword,
+                                onValueChange = { enterPassword = it },
+                                label = { Text("পাসওয়ার্ড (Password) *") },
+                                visualTransformation = PasswordVisualTransformation(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BrandPrimary,
+                                    unfocusedBorderColor = BorderGray
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("input_enter_password")
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = BrandPrimaryContainer
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.VpnKey, contentDescription = null, tint = BrandPrimary, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "ম্যানেজার যখন আপনাকে সদস্য হিসেবে যুক্ত করবে, তখন একটি ইউজার আইডি ও পাসওয়ার্ড তৈরি হবে। সেটি দিয়ে এখানে প্রবেশ করুন।",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = DarkText
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Button(
+                                onClick = {
+                                    if (enterUserId.isNotBlank() && enterPassword.isNotBlank()) {
+                                        val success = onJoinMess(enterUserId.trim(), enterPassword.trim())
+                                        if (!success) {
+                                            Toast.makeText(context, "ইউজার আইডি বা পাসওয়ার্ড সঠিক নয়", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "ইউজার আইডি ও পাসওয়ার্ড লিখুন", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                                    .testTag("btn_enter_mess_submit"),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = DepositGreen, contentColor = PureWhite)
+                            ) {
+                                Icon(Icons.Default.Key, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("মেসে প্রবেশ করুন", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        TextButton(onClick = { currentStage = AuthStage.ACCOUNT_AUTH }) {
+                            Text("← লগইন পেজে ফিরে যান", color = BrandPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

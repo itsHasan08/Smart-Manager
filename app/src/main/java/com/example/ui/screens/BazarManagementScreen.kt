@@ -30,9 +30,10 @@ fun BazarManagementScreen(
     members: List<Member>,
     totalBazar: Double,
     currentLanguage: AppLanguage,
-    onAddBazarClick: () -> Unit,
-    onEditBazarClick: (BazarEntry) -> Unit,
-    onDeleteBazarClick: (BazarEntry) -> Unit
+    isManager: Boolean = true,
+    onAddBazarClick: () -> Unit = {},
+    onEditBazarClick: (BazarEntry) -> Unit = {},
+    onDeleteBazarClick: (BazarEntry) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val memberMap = members.associateBy { it.id }
@@ -47,14 +48,16 @@ fun BazarManagementScreen(
     Scaffold(
         containerColor = PureWhite,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddBazarClick,
-                containerColor = ExpenseCoral,
-                contentColor = PureWhite,
-                shape = CircleShape,
-                modifier = Modifier.testTag("add_bazar_fab")
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Bazar")
+            if (isManager) {
+                FloatingActionButton(
+                    onClick = onAddBazarClick,
+                    containerColor = ExpenseCoral,
+                    contentColor = PureWhite,
+                    shape = CircleShape,
+                    modifier = Modifier.testTag("add_bazar_fab")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Bazar")
+                }
             }
         }
     ) { padding ->
@@ -200,32 +203,34 @@ fun BazarManagementScreen(
                                         color = ExpenseCoral
                                     )
 
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    if (isManager) {
+                                        Spacer(modifier = Modifier.width(6.dp))
 
-                                    // Edit Button
-                                    IconButton(
-                                        onClick = { onEditBazarClick(item) },
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Edit,
-                                            contentDescription = "Edit",
-                                            tint = BrandPrimary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                        // Edit Button
+                                        IconButton(
+                                            onClick = { onEditBazarClick(item) },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Edit",
+                                                tint = BrandPrimary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
 
-                                    // Delete Button
-                                    IconButton(
-                                        onClick = { onDeleteBazarClick(item) },
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.DeleteOutline,
-                                            contentDescription = "Delete",
-                                            tint = DueRed,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                        // Delete Button
+                                        IconButton(
+                                            onClick = { onDeleteBazarClick(item) },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.DeleteOutline,
+                                                contentDescription = "Delete",
+                                                tint = DueRed,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }

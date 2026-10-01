@@ -13,7 +13,8 @@ data class MessProfile(
     val currencySymbol: String = "৳",
     val monthStartDate: Int = 1,
     val activeMonth: String = "2026-09",
-    val noticePin: String = "Reminder: Please clear all dues before the 5th of next month."
+    val noticePin: String = "Reminder: Please clear all dues before the 5th of next month.",
+    val photoUri: String? = null
 )
 
 @Entity(tableName = "members")
@@ -26,6 +27,9 @@ data class Member(
     val bedNumber: String = "Bed-1",
     val role: String = "MEMBER", // "ADMIN" or "MEMBER"
     val pin: String = "1234",
+    val userId: String = "", // e.g. "USER-7821"
+    val password: String = "1234", // Password for login
+    val homeAddress: String = "", // Optional home address
     val status: String = "ACTIVE", // "ACTIVE", "INACTIVE", "LEFT"
     val joiningDate: Long = System.currentTimeMillis(),
     val initialBalance: Double = 0.0, // positive = advance, negative = due

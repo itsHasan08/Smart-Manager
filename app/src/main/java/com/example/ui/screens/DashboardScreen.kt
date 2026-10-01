@@ -31,6 +31,9 @@ import com.example.ui.components.*
 import com.example.ui.theme.*
 import java.util.Locale
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @Composable
 fun DashboardScreen(
     summary: MessSummary,
@@ -38,6 +41,9 @@ fun DashboardScreen(
     memberStatements: List<MemberStatement>,
     currentMonth: String,
     currentLanguage: AppLanguage,
+    isManager: Boolean = true,
+    currentMemberId: Long = 1L,
+    deposits: List<DepositEntry> = emptyList(),
     onMonthSelected: (String) -> Unit,
     onQuickDeposit: () -> Unit,
     onQuickBazar: () -> Unit,
@@ -46,11 +52,17 @@ fun DashboardScreen(
     onViewSettlement: () -> Unit,
     onToggleLanguage: () -> Unit = {}
 ) {
+    val myStatement = memberStatements.find { it.member.id == currentMemberId }
+        ?: memberStatements.firstOrNull()
+
+    val myDeposits = deposits.filter { it.memberId == currentMemberId && !it.isVoided }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PureWhite)
             .padding(horizontal = 16.dp, vertical = 6.dp)
+            .verticalScroll(rememberScrollState())
             .testTag("dashboard_screen"),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {

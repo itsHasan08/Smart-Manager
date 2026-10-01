@@ -141,38 +141,6 @@ fun TopMessAppBar(
             }
         },
         actions = {
-            // Language Toggle Pill (বাং / EN)
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = BrandPrimaryContainer,
-                border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.2f)),
-                modifier = Modifier
-                    .padding(end = 4.dp)
-                    .clickable { onToggleLanguage() }
-                    .testTag("language_toggle_btn")
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Translate,
-                        contentDescription = "Language",
-                        tint = BrandPrimary,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = if (currentLanguage == AppLanguage.BN) "বাংলা" else "EN",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        ),
-                        color = BrandPrimary
-                    )
-                }
-            }
-
             // Mess / Manager Profile Setup Button
             IconButton(
                 onClick = onEditProfileClick,

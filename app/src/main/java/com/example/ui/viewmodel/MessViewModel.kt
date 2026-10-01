@@ -209,8 +209,117 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Auth & Session
-    private val _isLoggedIn = MutableStateFlow(true)
+    data class UserAccount(
+        val name: String,
+        val phone: String
+    )
+
+    private val _currentUserAccount = MutableStateFlow<UserAccount?>(null)
+    val currentUserAccount: StateFlow<UserAccount?> = _currentUserAccount.asStateFlow()
+
+    private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    private val _isLoggedInAsManager = MutableStateFlow(false)
+    val isLoggedInAsManager: StateFlow<Boolean> = _isLoggedInAsManager.asStateFlow()
+
+    fun logout() {
+        _currentUserAccount.value = null
+        _isLoggedIn.value = false
+        _isLoggedInAsManager.value = false
+    }
+
+    // Step 1: Authentication
+    fun loginWithPhonePassword(phone: String, pass: String): Boolean {
+        val trimmedPhone = phone.trim()
+        val profile = messProfile.value
+        val isMgr = (profile != null && profile.managerPhone == trimmedPhone)
+        _currentUserAccount.value = UserAccount(name = if (isMgr) (profile?.managerName ?: "Manager") else "User", phone = trimmedPhone)
+        if (isMgr) {
+            _currentRole.value = CurrentRole.ADMIN
+            _isLoggedInAsManager.value = true
+        } else {
+            val foundMember = allMembers.value.find { it.phone == trimmedPhone }
+            if (foundMember != null) {
+                _currentMemberId.value = foundMember.id
+                _currentRole.value = if (foundMember.role == "ADMIN") CurrentRole.ADMIN else CurrentRole.MEMBER
+                _isLoggedInAsManager.value = (foundMember.role == "ADMIN")
+            }
+        }
+        _isLoggedIn.value = true
+        return true
+    }
+
+    fun registerUserAccount(name: String, phone: String, pass: String): Boolean {
+        _currentUserAccount.value = UserAccount(name = name, phone = phone)
+        _isLoggedIn.value = true
+        return true
+    }
+
+    fun loginWithGoogle(): Boolean {
+        _currentUserAccount.value = UserAccount(name = "Google User", phone = "01700000000")
+        _isLoggedIn.value = true
+        return true
+    }
+
+    // Step 2: Create Mess (Admin)
+    fun createMess(
+        messName: String,
+        address: String,
+        phone: String,
+        photoUri: String? = null
+    ) = viewModelScope.launch {
+        val managerName = _currentUserAccount.value?.name ?: "ম্যানেজার"
+        val newProfile = MessProfile(
+            id = 1,
+            messName = messName,
+            messAddress = address,
+            managerName = managerName,
+            managerPhone = phone,
+            photoUri = photoUri,
+            activeMonth = _currentMonth.value
+        )
+        repository.updateMessProfile(newProfile)
+
+        // Ensure Manager exists as Member #1 with ADMIN role
+        val managerMember = Member(
+            id = 1L,
+            name = managerName,
+            phone = phone,
+            roomNumber = "101",
+            bedNumber = "Manager Bed",
+            role = "ADMIN",
+            userId = "MGR-01",
+            password = "1234",
+            pin = "1234",
+            status = "ACTIVE"
+        )
+        repository.addMember(managerMember)
+
+        _currentRole.value = CurrentRole.ADMIN
+        _currentMemberId.value = 1L
+        _isLoggedIn.value = true
+    }
+
+    // Step 2: Join Mess with User ID & Password (Member)
+    fun joinMessWithCredentials(userId: String, pass: String): Member? {
+        val cleanUserId = userId.trim()
+        val cleanPass = pass.trim()
+
+        val found = allMembers.value.find { m ->
+            (m.userId.equals(cleanUserId, ignoreCase = true) || m.phone == cleanUserId) &&
+                    (m.password == cleanPass || m.pin == cleanPass)
+        }
+
+        if (found != null) {
+            _currentRole.value = if (found.role == "ADMIN") CurrentRole.ADMIN else CurrentRole.MEMBER
+            _currentMemberId.value = found.id
+            _currentUserAccount.value = UserAccount(name = found.name, phone = found.phone)
+            _isLoggedIn.value = true
+            return found
+        }
+        return null
+    }
 
     fun loginAsManager(phone: String, pin: String): Boolean {
         _currentRole.value = CurrentRole.ADMIN
@@ -251,6 +360,8 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
             roomNumber = "101",
             bedNumber = "Manager Bed",
             role = "ADMIN",
+            userId = "MGR-01",
+            password = pin,
             pin = pin,
             status = "ACTIVE"
         )
@@ -349,6 +460,30 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- Member Actions ---
+    fun addMemberWithLicense(
+        name: String,
+        phone: String,
+        roomNumber: String,
+        homeAddress: String = "",
+        userId: String = "",
+        pass: String = ""
+    ) = viewModelScope.launch {
+        val randId = if (userId.isNotBlank()) userId else "USER-${(1000..9999).random()}"
+        val randPass = if (pass.isNotBlank()) pass else "${(100..999).random()}${(10..99).random()}"
+        val member = Member(
+            name = name,
+            phone = phone,
+            roomNumber = roomNumber,
+            bedNumber = "Seat-1",
+            homeAddress = homeAddress,
+            userId = randId,
+            password = randPass,
+            pin = randPass.takeLast(4),
+            customRent = 0.0
+        )
+        repository.addMember(member)
+    }
+
     fun addMember(
         name: String,
         phone: String,
