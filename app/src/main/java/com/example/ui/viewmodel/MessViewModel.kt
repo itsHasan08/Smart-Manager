@@ -208,7 +208,60 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
         _currentMemberId.value = memberId
     }
 
-    // Calculations helper
+    // Auth & Session
+    private val _isLoggedIn = MutableStateFlow(true)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    fun loginAsManager(phone: String, pin: String): Boolean {
+        _currentRole.value = CurrentRole.ADMIN
+        _isLoggedIn.value = true
+        return true
+    }
+
+    fun loginAsMember(memberId: Long, pin: String): Boolean {
+        _currentRole.value = CurrentRole.MEMBER
+        _currentMemberId.value = memberId
+        _isLoggedIn.value = true
+        return true
+    }
+
+    fun logout() {
+        _isLoggedIn.value = false
+    }
+
+    fun createMessAccount(
+        messName: String,
+        managerName: String,
+        phone: String,
+        pin: String
+    ) = viewModelScope.launch {
+        val newProfile = MessProfile(
+            id = 1,
+            messName = messName,
+            managerName = managerName,
+            managerPhone = phone,
+            activeMonth = _currentMonth.value
+        )
+        repository.updateMessProfile(newProfile)
+
+        val managerMember = Member(
+            id = 1L,
+            name = managerName,
+            phone = phone,
+            roomNumber = "101",
+            bedNumber = "Manager Bed",
+            role = "ADMIN",
+            pin = pin,
+            status = "ACTIVE"
+        )
+        repository.addMember(managerMember)
+
+        _currentRole.value = CurrentRole.ADMIN
+        _currentMemberId.value = 1L
+        _isLoggedIn.value = true
+    }
+
+    // Calculations helper (Clean Pure Mess System: No rent, no utilities)
     private fun calculateMessSummary(
         allM: List<Member>,
         activeM: List<Member>,
@@ -222,22 +275,8 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
         val todayMeals = meals.filter { it.date == todayDateString }.sumOf { it.totalMeals }
         val mealRate = if (totalMealCount > 0) totalFoodExpense / totalMealCount else 0.0
 
-        val validExpenses = expenses.filter { !it.isVoided }
-        val rent = validExpenses.filter { it.category == "RENT" }.sumOf { it.amount }
-        val elec = validExpenses.filter { it.category == "ELECTRICITY" }.sumOf { it.amount }
-        val gas = validExpenses.filter { it.category == "GAS" }.sumOf { it.amount }
-        val water = validExpenses.filter { it.category == "WATER" }.sumOf { it.amount }
-        val net = validExpenses.filter { it.category == "INTERNET" }.sumOf { it.amount }
-        val cleaning = validExpenses.filter { it.category == "CLEANING" }.sumOf { it.amount }
-        val utilityTotal = elec + gas + water + net + cleaning
-
-        val other = validExpenses.filter {
-            it.category !in listOf("RENT", "ELECTRICITY", "GAS", "WATER", "INTERNET", "CLEANING")
-        }.sumOf { it.amount }
-
-        val totalExp = totalFoodExpense + rent + utilityTotal + other
         val totalDep = deposits.filter { !it.isVoided }.sumOf { it.amount }
-        val messBalance = totalDep - totalExp
+        val messBalance = totalDep - totalFoodExpense
 
         // Calculate member statements to get accurate total due and total advance
         val statements = calculateMemberStatements(allM, activeM, meals, bazars, expenses, deposits)
@@ -251,15 +290,15 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
             monthlyMealCount = totalMealCount,
             monthlyBazar = totalFoodExpense,
             mealRate = mealRate,
-            houseRent = rent,
-            electricityBill = elec,
-            gasBill = gas,
-            waterBill = water,
-            internetBill = net,
-            otherBills = cleaning,
-            totalUtilityBills = utilityTotal,
-            otherExpenses = other,
-            totalExpense = totalExp,
+            houseRent = 0.0,
+            electricityBill = 0.0,
+            gasBill = 0.0,
+            waterBill = 0.0,
+            internetBill = 0.0,
+            otherBills = 0.0,
+            totalUtilityBills = 0.0,
+            otherExpenses = 0.0,
+            totalExpense = totalFoodExpense,
             totalDeposits = totalDep,
             currentMessBalance = messBalance,
             totalDue = totalDue,
@@ -279,22 +318,6 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
         val totalMealCount = meals.sumOf { it.totalMeals }
         val mealRate = if (totalMealCount > 0) totalFoodExpense / totalMealCount else 0.0
 
-        val activeCount = if (activeM.isNotEmpty()) activeM.size else 1
-        val validExpenses = expenses.filter { !it.isVoided }
-
-        val totalRent = validExpenses.filter { it.category == "RENT" }.sumOf { it.amount }
-        val defaultRentPerMember = totalRent / activeCount
-
-        val totalUtilities = validExpenses.filter {
-            it.category in listOf("ELECTRICITY", "GAS", "WATER", "INTERNET", "CLEANING")
-        }.sumOf { it.amount }
-        val utilityPerMember = totalUtilities / activeCount
-
-        val totalOther = validExpenses.filter {
-            it.category !in listOf("RENT", "ELECTRICITY", "GAS", "WATER", "INTERNET", "CLEANING")
-        }.sumOf { it.amount }
-        val otherPerMember = totalOther / activeCount
-
         val mealsByMember = meals.groupBy { it.memberId }
         val depositsByMember = deposits.filter { !it.isVoided }.groupBy { it.memberId }
 
@@ -304,8 +327,7 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
 
             val mealCount = memberMeals.sumOf { it.totalMeals }
             val mealCost = mealCount * mealRate
-            val rentShare = if (member.customRent > 0) member.customRent else defaultRentPerMember
-            val totalCost = mealCost + rentShare + utilityPerMember + otherPerMember
+            val totalCost = mealCost // Pure Food/Meal cost!
 
             val totalPaid = memberDeposits.sumOf { it.amount } + member.initialBalance
             val netBalance = totalPaid - totalCost
@@ -314,9 +336,9 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
                 member = member,
                 mealCount = mealCount,
                 mealCost = mealCost,
-                rentShare = rentShare,
-                utilityShare = utilityPerMember,
-                otherShare = otherPerMember,
+                rentShare = 0.0,
+                utilityShare = 0.0,
+                otherShare = 0.0,
                 totalCost = totalCost,
                 totalPaid = totalPaid,
                 netBalance = netBalance,
@@ -389,6 +411,14 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
         repository.setBazarVoided(id, !currentVoid)
     }
 
+    fun updateBazar(bazar: BazarEntry) = viewModelScope.launch {
+        repository.updateBazar(bazar)
+    }
+
+    fun deleteBazar(bazar: BazarEntry) = viewModelScope.launch {
+        repository.deleteBazar(bazar)
+    }
+
     // --- Expense Actions ---
     fun addExpense(
         title: String,
@@ -436,6 +466,40 @@ class MessViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleVoidDeposit(id: Long, currentVoid: Boolean) = viewModelScope.launch {
         repository.setDepositVoided(id, !currentVoid)
+    }
+
+    fun updateCashDeposit(deposit: DepositEntry) = viewModelScope.launch {
+        repository.updateDeposit(deposit)
+    }
+
+    fun deleteCashDeposit(deposit: DepositEntry) = viewModelScope.launch {
+        repository.deleteDeposit(deposit)
+    }
+
+    fun deleteMember(member: Member) = viewModelScope.launch {
+        repository.deleteMember(member)
+    }
+
+    // Member self-service meal recording
+    fun saveMemberSelfMeals(
+        memberId: Long,
+        date: String,
+        breakfast: Double,
+        lunch: Double,
+        dinner: Double,
+        guest: Double
+    ) = viewModelScope.launch {
+        val entry = MealEntry(
+            date = date,
+            month = _currentMonth.value,
+            memberId = memberId,
+            breakfast = breakfast,
+            lunch = lunch,
+            dinner = dinner,
+            guestMeals = guest,
+            note = "Member self-recorded"
+        )
+        repository.saveMealEntry(entry)
     }
 
     // --- Notifications & Messaging ---

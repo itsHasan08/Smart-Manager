@@ -62,6 +62,16 @@ class MessRepository(private val dao: MessDao) {
         return id
     }
 
+    suspend fun updateBazar(bazar: BazarEntry) {
+        dao.updateBazarEntry(bazar)
+        logActivity("Bazar Updated", "Updated bazar entry #${bazar.id} (৳${bazar.totalAmount})", "Admin")
+    }
+
+    suspend fun deleteBazar(bazar: BazarEntry) {
+        dao.deleteBazarEntry(bazar)
+        logActivity("Bazar Deleted", "Deleted bazar entry #${bazar.id} (৳${bazar.totalAmount})", "Admin")
+    }
+
     suspend fun setBazarVoided(id: Long, isVoided: Boolean) {
         dao.setBazarVoided(id, isVoided)
         val statusStr = if (isVoided) "Voided" else "Reinstated"
@@ -91,6 +101,16 @@ class MessRepository(private val dao: MessDao) {
         val id = dao.insertDepositEntry(deposit)
         logActivity("Cash Deposit", "Received ৳${deposit.amount} cash from $memberName (${deposit.note})", "Admin")
         return id
+    }
+
+    suspend fun updateDeposit(deposit: DepositEntry) {
+        dao.updateDepositEntry(deposit)
+        logActivity("Deposit Updated", "Updated deposit #${deposit.id} (৳${deposit.amount})", "Admin")
+    }
+
+    suspend fun deleteDeposit(deposit: DepositEntry) {
+        dao.deleteDepositEntry(deposit)
+        logActivity("Deposit Deleted", "Deleted deposit #${deposit.id} (৳${deposit.amount})", "Admin")
     }
 
     suspend fun setDepositVoided(id: Long, isVoided: Boolean) {

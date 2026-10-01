@@ -213,7 +213,8 @@ fun AppDrawerSheet(
     onSelectTab: (Int) -> Unit,
     onEditProfileClick: () -> Unit,
     onSettlementClick: () -> Unit,
-    onToggleLanguage: () -> Unit,
+    onRecycleBinClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     onCloseDrawer: () -> Unit
 ) {
     ModalDrawerSheet(
@@ -371,46 +372,56 @@ fun AppDrawerSheet(
                 }
             )
 
+            DrawerNavItem(
+                icon = Icons.Default.RestoreFromTrash,
+                label = if (currentLanguage == AppLanguage.BN) "রিসাইকেল বিন ও ব্যাকআপ" else "Recycle Bin & Backup",
+                isSelected = false,
+                onClick = {
+                    onRecycleBinClick()
+                    onCloseDrawer()
+                }
+            )
+
             Spacer(modifier = Modifier.weight(1f))
             HorizontalDivider(color = BorderGray)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Bottom Drawer Actions: Language Toggle & Version
-            Row(
+            // Bottom Logout button (Clean and prominent)
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggleLanguage() }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .clickable {
+                        onLogoutClick()
+                        onCloseDrawer()
+                    },
+                shape = RoundedCornerShape(10.dp),
+                color = ExpenseCoralContainer
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Translate,
-                        contentDescription = null,
-                        tint = BrandPrimary,
+                        imageVector = Icons.Default.Logout,
+                        contentDescription = "Logout",
+                        tint = DueRed,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = if (currentLanguage == AppLanguage.BN) "বাংলা ভাষা সক্রিয়" else "English Active",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = DarkText
+                        text = if (currentLanguage == AppLanguage.BN) "লগআউট করুন" else "Log Out",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = DueRed
                     )
                 }
-
-                Text(
-                    text = if (currentLanguage == AppLanguage.BN) "Change" else "পরিবর্তন",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = BrandPrimary
-                )
             }
 
+            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
-                text = "Smart Manager Lite v2.0",
+                text = "Smart Mess Manager v2.2",
                 style = MaterialTheme.typography.labelSmall,
-                color = GrayText.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 4.dp)
+                color = GrayText.copy(alpha = 0.6f)
             )
         }
     }

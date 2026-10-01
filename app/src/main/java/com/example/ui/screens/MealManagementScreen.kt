@@ -21,10 +21,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.model.MealEntry
 import com.example.data.model.Member
 import com.example.data.model.MessSummary
 import com.example.ui.theme.*
+import com.example.ui.viewmodel.CurrentRole
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,238 +37,459 @@ fun MealManagementScreen(
     messSummary: MessSummary,
     currentMonth: String,
     currentLanguage: AppLanguage,
-    onSaveMeals: (List<MealEntry>) -> Unit
+    currentRole: CurrentRole = CurrentRole.ADMIN,
+    currentMemberId: Long = 1L,
+    onSaveMeals: (List<MealEntry>) -> Unit,
+    onSaveSelfMeal: (memberId: Long, date: String, breakfast: Double, lunch: Double, dinner: Double, guest: Double) -> Unit = { _, _, _, _, _, _ -> }
 ) {
     val context = LocalContext.current
-    var selectedDate by remember {
-        mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
+    val todayDateStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    val tomorrowDateStr = remember {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, 1)
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
     }
 
-    val dailyMealsState = remember { mutableStateMapOf<Long, MealEntry>() }
+    var selectedDate by remember { mutableStateOf(todayDateStr) }
 
-    LaunchedEffect(selectedDate, allMonthMeals, members) {
-        dailyMealsState.clear()
-        val mealsForDate = allMonthMeals.filter { it.date == selectedDate }.associateBy { it.memberId }
+    // If logged in as MEMBER: Show Self-Service Meal Control!
+    if (currentRole == CurrentRole.MEMBER) {
+        val loggedInMember = members.find { it.id == currentMemberId } ?: members.firstOrNull()
+        val existingEntry = allMonthMeals.find { it.date == selectedDate && it.memberId == (loggedInMember?.id ?: 0L) }
 
-        members.forEach { m ->
-            val existing = mealsForDate[m.id]
-            if (existing != null) {
-                dailyMealsState[m.id] = existing
-            } else {
-                dailyMealsState[m.id] = MealEntry(
-                    date = selectedDate,
-                    month = currentMonth,
-                    memberId = m.id,
-                    breakfast = 0.0,
-                    lunch = 1.0,
-                    dinner = 1.0,
-                    guestMeals = 0.0
-                )
-            }
-        }
-    }
+        var breakfast by remember(selectedDate, existingEntry) { mutableStateOf(existingEntry?.breakfast ?: 0.0) }
+        var lunch by remember(selectedDate, existingEntry) { mutableStateOf(existingEntry?.lunch ?: 1.0) }
+        var dinner by remember(selectedDate, existingEntry) { mutableStateOf(existingEntry?.dinner ?: 1.0) }
+        var guest by remember(selectedDate, existingEntry) { mutableStateOf(existingEntry?.guestMeals ?: 0.0) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureWhite)
-            .padding(horizontal = 16.dp)
-            .testTag("meal_management_screen")
-    ) {
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Date Bar
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = PureWhite,
-            border = BorderStroke(1.dp, BorderGray),
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(OffWhite)
+                .padding(16.dp)
+                .testTag("member_meal_control_screen"),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Header
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = PureWhite),
+                border = BorderStroke(1.dp, BorderGray)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MealAmberContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Restaurant, contentDescription = null, tint = MealAmber, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "আমার মিল কন্ট্রোল (${loggedInMember?.name ?: "সদস্য"})",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = DarkText
+                        )
+                        Text(
+                            text = "আপনার খাবার বন্ধ বা চালু করুন",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = GrayText
+                        )
+                    }
+                }
+            }
+
+            // Date Tabs (আজ / আগামীকাল)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceGray)
+                    .padding(4.dp)
             ) {
-                IconButton(onClick = { selectedDate = adjustDateBy(selectedDate, -1) }) {
-                    Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Day", tint = RedPrimary)
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = RedPrimary, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedDate = todayDateStr },
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (selectedDate == todayDateStr) PureWhite else SurfaceGray,
+                    border = if (selectedDate == todayDateStr) BorderStroke(1.dp, BorderGray) else null
+                ) {
                     Text(
-                        text = selectedDate,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = DarkText
+                        text = "আজকের খাবার ($todayDateStr)",
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (selectedDate == todayDateStr) BrandPrimary else GrayText,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
 
-                IconButton(onClick = { selectedDate = adjustDateBy(selectedDate, 1) }) {
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Next Day", tint = RedPrimary)
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedDate = tomorrowDateStr },
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (selectedDate == tomorrowDateStr) PureWhite else SurfaceGray,
+                    border = if (selectedDate == tomorrowDateStr) BorderStroke(1.dp, BorderGray) else null
+                ) {
+                    Text(
+                        text = "আগামীকালের খাবার",
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (selectedDate == tomorrowDateStr) BrandPrimary else GrayText,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+
+            // Meal Toggles Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = PureWhite),
+                border = BorderStroke(1.dp, BorderGray)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    MemberMealCounterRow(
+                        title = "সকালের খাবার (Breakfast)",
+                        value = breakfast,
+                        onIncrement = { if (breakfast < 5.0) breakfast += 1.0 },
+                        onDecrement = { if (breakfast > 0.0) breakfast -= 1.0 },
+                        onToggle = { breakfast = if (breakfast > 0.0) 0.0 else 1.0 }
+                    )
+
+                    HorizontalDivider(color = BorderGray)
+
+                    MemberMealCounterRow(
+                        title = "দুপুরের খাবার (Lunch)",
+                        value = lunch,
+                        onIncrement = { if (lunch < 5.0) lunch += 1.0 },
+                        onDecrement = { if (lunch > 0.0) lunch -= 1.0 },
+                        onToggle = { lunch = if (lunch > 0.0) 0.0 else 1.0 }
+                    )
+
+                    HorizontalDivider(color = BorderGray)
+
+                    MemberMealCounterRow(
+                        title = "রাতের খাবার (Dinner)",
+                        value = dinner,
+                        onIncrement = { if (dinner < 5.0) dinner += 1.0 },
+                        onDecrement = { if (dinner > 0.0) dinner -= 1.0 },
+                        onToggle = { dinner = if (dinner > 0.0) 0.0 else 1.0 }
+                    )
+
+                    HorizontalDivider(color = BorderGray)
+
+                    MemberMealCounterRow(
+                        title = "মেহমান / গেস্ট মিল (Guest)",
+                        value = guest,
+                        onIncrement = { if (guest < 5.0) guest += 1.0 },
+                        onDecrement = { if (guest > 0.0) guest -= 1.0 },
+                        onToggle = { guest = if (guest > 0.0) 0.0 else 1.0 }
+                    )
+                }
+            }
+
+            // Quick Toggle Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        lunch = 1.0
+                        dinner = 1.0
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("সব মিল চালু (১+১)")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        breakfast = 0.0
+                        lunch = 0.0
+                        dinner = 0.0
+                        guest = 0.0
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DueRed)
+                ) {
+                    Text("খাবার বন্ধ (০)")
+                }
+            }
+
+            // Save Meal Button
+            Button(
+                onClick = {
+                    if (loggedInMember != null) {
+                        onSaveSelfMeal(loggedInMember.id, selectedDate, breakfast, lunch, dinner, guest)
+                        Toast.makeText(context, "$selectedDate তারিখের মিল সফলভাবে সংরক্ষিত হয়েছে!", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite)
+            ) {
+                Icon(Icons.Default.Save, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("আমার খাবার সেভ করুন", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+    } else {
+        // MANAGER (ADMIN) FULL MEAL SHEET
+        val dailyMealsState = remember { mutableStateMapOf<Long, MealEntry>() }
+
+        LaunchedEffect(selectedDate, allMonthMeals, members) {
+            dailyMealsState.clear()
+            val mealsForDate = allMonthMeals.filter { it.date == selectedDate }.associateBy { it.memberId }
+
+            members.forEach { m ->
+                val existing = mealsForDate[m.id]
+                if (existing != null) {
+                    dailyMealsState[m.id] = existing
+                } else {
+                    dailyMealsState[m.id] = MealEntry(
+                        date = selectedDate,
+                        month = currentMonth,
+                        memberId = m.id,
+                        breakfast = 0.0,
+                        lunch = 1.0,
+                        dinner = 1.0,
+                        guestMeals = 0.0
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Quick Batch Toggle row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = {
-                    members.forEach { m ->
-                        val current = dailyMealsState[m.id] ?: MealEntry(date = selectedDate, month = currentMonth, memberId = m.id)
-                        dailyMealsState[m.id] = current.copy(lunch = 1.0, dinner = 1.0)
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = RedPrimaryContainer, contentColor = RedOnPrimaryContainer),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(vertical = 6.dp)
-            ) {
-                Text(
-                    Strings.allLunchDinner(currentLanguage),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-
-            OutlinedButton(
-                onClick = {
-                    members.forEach { m ->
-                        val current = dailyMealsState[m.id] ?: MealEntry(date = selectedDate, month = currentMonth, memberId = m.id)
-                        dailyMealsState[m.id] = current.copy(breakfast = 0.0, lunch = 0.0, dinner = 0.0, guestMeals = 0.0)
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, BorderGray),
-                contentPadding = PaddingValues(vertical = 6.dp)
-            ) {
-                Text(
-                    Strings.clearAllMeals(currentLanguage),
-                    style = MaterialTheme.typography.labelSmall.copy(color = GrayText)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Members List with Smooth Toggles
-        LazyColumn(
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .background(PureWhite)
+                .testTag("admin_meal_screen")
         ) {
-            items(members, key = { it.id }) { m ->
-                val entry = dailyMealsState[m.id] ?: MealEntry(date = selectedDate, month = currentMonth, memberId = m.id)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Date Picker Banner
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = SurfaceGray,
+                border = BorderStroke(1.dp, BorderGray),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = BrandPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "তারিখ: $selectedDate",
+                            fontWeight = FontWeight.Bold,
+                            color = DarkText
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = selectedDate == todayDateStr,
+                            onClick = { selectedDate = todayDateStr },
+                            label = { Text("আজ") }
+                        )
+                        FilterChip(
+                            selected = selectedDate == tomorrowDateStr,
+                            onClick = { selectedDate = tomorrowDateStr },
+                            label = { Text("কাল") }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Dedicated Card for Manager's Own Meal
+            val managerMember = members.find { it.role == "ADMIN" || it.id == currentMemberId } ?: members.firstOrNull()
+            if (managerMember != null) {
+                val mgrMeal = dailyMealsState[managerMember.id] ?: MealEntry(
+                    date = selectedDate,
+                    month = currentMonth,
+                    memberId = managerMember.id
+                )
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = PureWhite),
-                    border = BorderStroke(1.dp, BorderGray)
+                    colors = CardDefaults.cardColors(containerColor = BrandPrimaryContainer),
+                    border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.3f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AccountCircle, contentDescription = null, tint = BrandPrimary, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "👑 ম্যানেজারের নিজের মিল (${managerMember.name})",
+                                    fontWeight = FontWeight.Bold,
+                                    color = DarkText,
+                                    fontSize = 14.sp
+                                )
+                            }
                             Text(
-                                text = "${m.name} (${Strings.room(currentLanguage)} ${m.roomNumber})",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = DarkText
-                            )
-
-                            Text(
-                                text = "${Strings.totalMeals(currentLanguage)}: ${String.format(Locale.US, "%.1f", entry.totalMeals)} ${Strings.mealUnit(currentLanguage)}",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                color = RedPrimary
+                                text = "মোট: ${String.format(Locale.US, "%.1f", mgrMeal.totalMeals)} মিল",
+                                fontWeight = FontWeight.Bold,
+                                color = BrandPrimary,
+                                fontSize = 13.sp
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // Meal Toggles (সকাল, দুপুর, রাত, গেস্ট)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            RedMealToggle(
-                                label = Strings.morning(currentLanguage),
-                                value = entry.breakfast,
-                                onClick = {
-                                    val next = if (entry.breakfast == 0.0) 1.0 else 0.0
-                                    dailyMealsState[m.id] = entry.copy(breakfast = next)
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
+                            MiniMealItem("সকাল", mgrMeal.breakfast) {
+                                dailyMealsState[managerMember.id] = mgrMeal.copy(breakfast = if (mgrMeal.breakfast > 0) 0.0 else 1.0)
+                            }
+                            MiniMealItem("দুপুর", mgrMeal.lunch) {
+                                dailyMealsState[managerMember.id] = mgrMeal.copy(lunch = if (mgrMeal.lunch > 0) 0.0 else 1.0)
+                            }
+                            MiniMealItem("রাত", mgrMeal.dinner) {
+                                dailyMealsState[managerMember.id] = mgrMeal.copy(dinner = if (mgrMeal.dinner > 0) 0.0 else 1.0)
+                            }
+                            MiniMealItem("গেস্ট", mgrMeal.guestMeals) {
+                                dailyMealsState[managerMember.id] = mgrMeal.copy(guestMeals = if (mgrMeal.guestMeals > 0) 0.0 else 1.0)
+                            }
+                        }
+                    }
+                }
 
-                            RedMealToggle(
-                                label = Strings.noon(currentLanguage),
-                                value = entry.lunch,
-                                onClick = {
-                                    val next = if (entry.lunch == 1.0) 0.0 else 1.0
-                                    dailyMealsState[m.id] = entry.copy(lunch = next)
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
-                            RedMealToggle(
-                                label = Strings.night(currentLanguage),
-                                value = entry.dinner,
-                                onClick = {
-                                    val next = if (entry.dinner == 1.0) 0.0 else 1.0
-                                    dailyMealsState[m.id] = entry.copy(dinner = next)
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
+            // Quick Batch Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        members.forEach { m ->
+                            val current = dailyMealsState[m.id] ?: return@forEach
+                            dailyMealsState[m.id] = current.copy(lunch = 1.0, dinner = 1.0)
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("সবার (১+১)", fontSize = 12.sp)
+                }
 
-                            // Guest Stepper
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = SurfaceGray,
-                                border = BorderStroke(1.dp, BorderGray),
-                                modifier = Modifier.height(36.dp)
+                OutlinedButton(
+                    onClick = {
+                        members.forEach { m ->
+                            val current = dailyMealsState[m.id] ?: return@forEach
+                            dailyMealsState[m.id] = current.copy(breakfast = 0.0, lunch = 0.0, dinner = 0.0, guestMeals = 0.0)
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DueRed)
+                ) {
+                    Text("সবার বন্ধ (০)", fontSize = 12.sp)
+                }
+
+                Button(
+                    onClick = {
+                        onSaveMeals(dailyMealsState.values.toList())
+                        Toast.makeText(context, "$selectedDate তারিখের মিল শিট সেভ হয়েছে!", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.weight(1.2f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite)
+                ) {
+                    Text("সব সেভ করুন", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Member list
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                items(members, key = { it.id }) { member ->
+                    val meal = dailyMealsState[member.id] ?: MealEntry(
+                        date = selectedDate,
+                        month = currentMonth,
+                        memberId = member.id
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = PureWhite),
+                        border = BorderStroke(1.dp, BorderGray)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "${Strings.guest(currentLanguage)}:",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = GrayText
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            val g = (entry.guestMeals - 1.0).coerceAtLeast(0.0)
-                                            dailyMealsState[m.id] = entry.copy(guestMeals = g)
-                                        },
-                                        modifier = Modifier.size(26.dp)
-                                    ) {
-                                        Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(12.dp))
-                                    }
-                                    Text(
-                                        text = "${entry.guestMeals.toInt()}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = DarkText
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            val g = entry.guestMeals + 1.0
-                                            dailyMealsState[m.id] = entry.copy(guestMeals = g)
-                                        },
-                                        modifier = Modifier.size(26.dp)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(12.dp))
-                                    }
+                                Text(
+                                    text = member.name,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DarkText
+                                )
+                                Text(
+                                    text = "মোট: ${String.format(Locale.US, "%.1f", meal.totalMeals)} মিল",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MealAmber
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                MiniMealItem("সকাল", meal.breakfast) {
+                                    dailyMealsState[member.id] = meal.copy(breakfast = if (meal.breakfast > 0) 0.0 else 1.0)
+                                }
+                                MiniMealItem("দুপুর", meal.lunch) {
+                                    dailyMealsState[member.id] = meal.copy(lunch = if (meal.lunch > 0) 0.0 else 1.0)
+                                }
+                                MiniMealItem("রাত", meal.dinner) {
+                                    dailyMealsState[member.id] = meal.copy(dinner = if (meal.dinner > 0) 0.0 else 1.0)
+                                }
+                                MiniMealItem("গেস্ট", meal.guestMeals) {
+                                    dailyMealsState[member.id] = meal.copy(guestMeals = if (meal.guestMeals > 0) 0.0 else 1.0)
                                 }
                             }
                         }
@@ -274,81 +497,77 @@ fun MealManagementScreen(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Big Red Save Button
-        val dayTotal = dailyMealsState.values.sumOf { it.totalMeals }
-        Button(
-            onClick = {
-                onSaveMeals(dailyMealsState.values.toList())
-                val toastMsg = if (currentLanguage == AppLanguage.BN) {
-                    "$selectedDate-এর মিল হিসাব সফলভাবে সেভ করা হয়েছে!"
-                } else {
-                    "Meals for $selectedDate saved successfully!"
-                }
-                Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = RedPrimary, contentColor = PureWhite),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .testTag("save_meals_button")
-        ) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = PureWhite)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "${Strings.saveMeals(currentLanguage)} (${String.format(Locale.US, "%.1f", dayTotal)} ${Strings.mealUnit(currentLanguage)})",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 @Composable
-fun RedMealToggle(
-    label: String,
+private fun MemberMealCounterRow(
+    title: String,
     value: Double,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    onToggle: () -> Unit
 ) {
-    val isSelected = value > 0.0
-    val bg = if (isSelected) RedPrimary else PureWhite
-    val content = if (isSelected) PureWhite else DarkText
-    val border = if (isSelected) null else BorderStroke(1.dp, BorderGray)
-
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = bg,
-        border = border,
-        modifier = modifier
-            .height(36.dp)
-            .clickable(onClick = onClick)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
+        Column {
+            Text(title, fontWeight = FontWeight.Bold, color = DarkText, fontSize = 14.sp)
             Text(
-                text = "$label: ${if (value > 0) "1" else "0"}",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = content
+                text = if (value > 0.0) "খাবার চালু আছে" else "খাবার বন্ধ",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (value > 0.0) DepositGreen else DueRed
             )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FilledIconButton(
+                onClick = onDecrement,
+                modifier = Modifier.size(32.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceGray, contentColor = DarkText)
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Minus", modifier = Modifier.size(16.dp))
+            }
+
+            Text(
+                text = String.format(Locale.US, "%.0f", value),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(horizontal = 12.dp),
+                color = if (value > 0.0) BrandPrimary else GrayText
+            )
+
+            FilledIconButton(
+                onClick = onIncrement,
+                modifier = Modifier.size(32.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(containerColor = BrandPrimaryContainer, contentColor = BrandPrimary)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Plus", modifier = Modifier.size(16.dp))
+            }
         }
     }
 }
 
-private fun adjustDateBy(dateStr: String, days: Int): String {
-    return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val cal = Calendar.getInstance()
-        cal.time = sdf.parse(dateStr) ?: Date()
-        cal.add(Calendar.DAY_OF_YEAR, days)
-        sdf.format(cal.time)
-    } catch (e: Exception) {
-        dateStr
+@Composable
+private fun MiniMealItem(label: String, count: Double, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (count > 0) BrandPrimaryContainer else SurfaceGray,
+        border = BorderStroke(1.dp, if (count > 0) BrandPrimary.copy(alpha = 0.3f) else BorderGray),
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = GrayText)
+            Text(
+                text = String.format(Locale.US, "%.0f", count),
+                fontWeight = FontWeight.Bold,
+                color = if (count > 0) BrandPrimary else GrayText
+            )
+        }
     }
 }

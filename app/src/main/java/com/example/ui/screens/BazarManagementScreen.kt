@@ -30,7 +30,9 @@ fun BazarManagementScreen(
     members: List<Member>,
     totalBazar: Double,
     currentLanguage: AppLanguage,
-    onAddBazarClick: () -> Unit
+    onAddBazarClick: () -> Unit,
+    onEditBazarClick: (BazarEntry) -> Unit,
+    onDeleteBazarClick: (BazarEntry) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val memberMap = members.associateBy { it.id }
@@ -47,7 +49,7 @@ fun BazarManagementScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddBazarClick,
-                containerColor = RedPrimary,
+                containerColor = ExpenseCoral,
                 contentColor = PureWhite,
                 shape = CircleShape,
                 modifier = Modifier.testTag("add_bazar_fab")
@@ -62,16 +64,18 @@ fun BazarManagementScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .background(PureWhite)
-                .testTag("bazar_screen")
+                .testTag("bazar_management_screen")
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Total Bazar Hero Card (Light Red container with Red text)
+            // Total Bazar Hero Card
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("total_bazar_card"),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = RedPrimaryContainer),
-                border = BorderStroke(1.dp, RedPrimary.copy(alpha = 0.25f))
+                colors = CardDefaults.cardColors(containerColor = ExpenseCoralContainer),
+                border = BorderStroke(1.dp, ExpenseCoralBorder)
             ) {
                 Row(
                     modifier = Modifier
@@ -84,11 +88,11 @@ fun BazarManagementScreen(
                         Text(
                             text = Strings.monthlyBazar(currentLanguage),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            color = RedOnPrimaryContainer
+                            color = ExpenseCoral
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "৳${String.format(Locale.US, "%,.2f", totalBazar)}",
+                            text = "৳${String.format(Locale.US, "%,.0f", totalBazar)}",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 28.sp
@@ -101,7 +105,7 @@ fun BazarManagementScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(RedPrimary),
+                            .background(ExpenseCoral),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -125,10 +129,10 @@ fun BazarManagementScreen(
                         if (currentLanguage == AppLanguage.BN) "বাজারের জিনিস বা বাজারকারী খুঁজুন..." else "Search items or buyer..."
                     )
                 },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = RedPrimary) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = GrayText) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = RedPrimary,
+                    focusedBorderColor = BrandPrimary,
                     unfocusedBorderColor = BorderGray
                 ),
                 shape = RoundedCornerShape(12.dp),
@@ -143,7 +147,7 @@ fun BazarManagementScreen(
                 EmptyStateView(
                     icon = Icons.Default.ShoppingBasket,
                     title = if (currentLanguage == AppLanguage.BN) "কোনো বাজার তালিকা নেই" else "No Bazar Records",
-                    description = if (currentLanguage == AppLanguage.BN) "নিচের লাল '+' বাটনে চাপ দিয়ে বাজার যোগ করুন" else "Tap '+' button below to add food market cost"
+                    description = if (currentLanguage == AppLanguage.BN) "নিচের '+' বাটনে চাপ দিয়ে বাজার যোগ করুন" else "Tap '+' button below to add food market cost"
                 )
             } else {
                 LazyColumn(
@@ -177,16 +181,53 @@ fun BazarManagementScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = GrayText
                                     )
+                                    if (item.note.isNotBlank()) {
+                                        Text(
+                                            text = "নোট: ${item.note}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = GrayText
+                                        )
+                                    }
                                 }
 
-                                Text(
-                                    text = "৳${String.format(Locale.US, "%,.0f", item.totalAmount)}",
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 18.sp
-                                    ),
-                                    color = RedPrimary
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "৳${String.format(Locale.US, "%,.0f", item.totalAmount)}",
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 18.sp
+                                        ),
+                                        color = ExpenseCoral
+                                    )
+
+                                    Spacer(modifier = Modifier.width(6.dp))
+
+                                    // Edit Button
+                                    IconButton(
+                                        onClick = { onEditBazarClick(item) },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = BrandPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    // Delete Button
+                                    IconButton(
+                                        onClick = { onDeleteBazarClick(item) },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete",
+                                            tint = DueRed,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -722,6 +723,383 @@ fun EditMessProfileDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(Strings.cancel(currentLanguage), color = GrayText) }
+        }
+    )
+}
+
+@Composable
+fun ConfirmDeleteDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(16.dp),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = DueRed)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(title, fontWeight = FontWeight.Bold, color = DarkText)
+            }
+        },
+        text = {
+            Text(message, color = GrayText, style = MaterialTheme.typography.bodyMedium)
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = DueRed, contentColor = PureWhite),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("মুছে ফেলুন (Delete)", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("বাতিল", color = GrayText)
+            }
+        }
+    )
+}
+
+@Composable
+fun EditBazarDialog(
+    bazar: com.example.data.model.BazarEntry,
+    members: List<Member>,
+    currentLanguage: AppLanguage,
+    onDismiss: () -> Unit,
+    onConfirm: (updated: com.example.data.model.BazarEntry) -> Unit
+) {
+    var buyerId by remember { mutableStateOf(bazar.buyerMemberId) }
+    var itemsSummary by remember { mutableStateOf(bazar.itemsSummary) }
+    var amountStr by remember { mutableStateOf(bazar.totalAmount.toString()) }
+    var date by remember { mutableStateOf(bazar.date) }
+    var note by remember { mutableStateOf(bazar.note) }
+    var buyerDropdownExpanded by remember { mutableStateOf(false) }
+
+    val selectedBuyer = members.find { it.id == buyerId }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Text(
+                if (currentLanguage == AppLanguage.BN) "বাজারের তথ্য পরিবর্তন করুন" else "Edit Bazar Entry",
+                fontWeight = FontWeight.Bold,
+                color = DarkText
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Buyer Dropdown
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = selectedBuyer?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(Strings.buyer(currentLanguage)) },
+                        trailingIcon = {
+                            IconButton(onClick = { buyerDropdownExpanded = true }) {
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { buyerDropdownExpanded = true }
+                    )
+                    DropdownMenu(
+                        expanded = buyerDropdownExpanded,
+                        onDismissRequest = { buyerDropdownExpanded = false }
+                    ) {
+                        members.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m.name) },
+                                onClick = {
+                                    buyerId = m.id
+                                    buyerDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = itemsSummary,
+                    onValueChange = { itemsSummary = it },
+                    label = { Text(Strings.items(currentLanguage)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = amountStr,
+                    onValueChange = { amountStr = it },
+                    label = { Text(Strings.amount(currentLanguage)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    label = { Text(Strings.date(currentLanguage)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amt = amountStr.toDoubleOrNull() ?: bazar.totalAmount
+                    if (amt > 0 && itemsSummary.isNotBlank()) {
+                        onConfirm(
+                            bazar.copy(
+                                buyerMemberId = buyerId,
+                                itemsSummary = itemsSummary,
+                                totalAmount = amt,
+                                date = date,
+                                note = note
+                            )
+                        )
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("আপডেট করুন", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("বাতিল", color = GrayText) }
+        }
+    )
+}
+
+@Composable
+fun EditDepositDialog(
+    deposit: com.example.data.model.DepositEntry,
+    members: List<Member>,
+    currentLanguage: AppLanguage,
+    onDismiss: () -> Unit,
+    onConfirm: (updated: com.example.data.model.DepositEntry) -> Unit
+) {
+    var memberId by remember { mutableStateOf(deposit.memberId) }
+    var amountStr by remember { mutableStateOf(deposit.amount.toString()) }
+    var date by remember { mutableStateOf(deposit.date) }
+    var note by remember { mutableStateOf(deposit.note) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    val selectedMember = members.find { it.id == memberId }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Text(
+                if (currentLanguage == AppLanguage.BN) "নগদ জমার তথ্য পরিবর্তন করুন" else "Edit Cash Deposit",
+                fontWeight = FontWeight.Bold,
+                color = DarkText
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = selectedMember?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(Strings.member(currentLanguage)) },
+                        trailingIcon = {
+                            IconButton(onClick = { dropdownExpanded = true }) {
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { dropdownExpanded = true }
+                    )
+                    DropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        members.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m.name) },
+                                onClick = {
+                                    memberId = m.id
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = amountStr,
+                    onValueChange = { amountStr = it },
+                    label = { Text(Strings.amount(currentLanguage)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    label = { Text(Strings.date(currentLanguage)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(Strings.note(currentLanguage)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amt = amountStr.toDoubleOrNull() ?: deposit.amount
+                    if (amt > 0) {
+                        onConfirm(
+                            deposit.copy(
+                                memberId = memberId,
+                                amount = amt,
+                                date = date,
+                                note = note
+                            )
+                        )
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = DepositGreen, contentColor = PureWhite),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("আপডেট করুন", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("বাতিল", color = GrayText) }
+        }
+    )
+}
+
+@Composable
+fun EditMemberDialog(
+    member: Member,
+    currentLanguage: AppLanguage,
+    onDismiss: () -> Unit,
+    onConfirm: (updated: Member) -> Unit
+) {
+    var name by remember { mutableStateOf(member.name) }
+    var phone by remember { mutableStateOf(member.phone) }
+    var room by remember { mutableStateOf(member.roomNumber) }
+    var bed by remember { mutableStateOf(member.bedNumber) }
+    var pin by remember { mutableStateOf(member.pin) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Text(
+                if (currentLanguage == AppLanguage.BN) "সদস্যের তথ্য সম্পাদনা করুন" else "Edit Member Information",
+                fontWeight = FontWeight.Bold,
+                color = DarkText
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(Strings.name(currentLanguage)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(Strings.phone(currentLanguage)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = room,
+                        onValueChange = { room = it },
+                        label = { Text(Strings.room(currentLanguage)) },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = bed,
+                        onValueChange = { bed = it },
+                        label = { Text(Strings.bed(currentLanguage)) },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { pin = it },
+                    label = { Text("লগইন পিন (PIN)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        onConfirm(
+                            member.copy(
+                                name = name.trim(),
+                                phone = phone.trim(),
+                                roomNumber = room.trim(),
+                                bedNumber = bed.trim(),
+                                pin = pin.trim().ifBlank { "1234" }
+                            )
+                        )
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("আপডেট করুন", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("বাতিল", color = GrayText) }
         }
     )
 }

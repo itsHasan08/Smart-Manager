@@ -43,36 +43,74 @@ fun DashboardScreen(
     onQuickBazar: () -> Unit,
     onQuickMeal: () -> Unit,
     onMemberClick: (Long) -> Unit,
-    onViewSettlement: () -> Unit
+    onViewSettlement: () -> Unit,
+    onToggleLanguage: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(OffWhite)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .background(PureWhite)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .testTag("dashboard_screen"),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 1. Month Filter Chips (Compact)
-        MonthFilterChips(
-            selectedMonth = currentMonth,
-            onMonthSelected = onMonthSelected
-        )
+        // 1. Month Filter Chips with Language Switcher inside Dashboard
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                MonthFilterChips(
+                    selectedMonth = currentMonth,
+                    onMonthSelected = onMonthSelected
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = BrandPrimaryContainer,
+                border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.25f)),
+                modifier = Modifier
+                    .clickable { onToggleLanguage() }
+                    .testTag("dashboard_lang_toggle_btn")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Translate,
+                        contentDescription = "Language",
+                        tint = BrandPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (currentLanguage == AppLanguage.BN) "বাংলা" else "EN",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                        color = BrandPrimary
+                    )
+                }
+            }
+        }
 
         // 2. Hero Cash Balance Card (Clean, focused, no clutter)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("mess_balance_hero_card"),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = PureWhite),
             border = BorderStroke(1.dp, BorderGray),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -85,12 +123,12 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                             color = GrayText
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "৳${String.format(Locale.US, "%,.0f", summary.currentMessBalance)}",
                             style = MaterialTheme.typography.headlineLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 34.sp
+                                fontSize = 30.sp
                             ),
                             color = BrandPrimary
                         )
@@ -98,7 +136,7 @@ fun DashboardScreen(
 
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
+                            .size(46.dp)
                             .clip(CircleShape)
                             .background(BrandPrimaryContainer),
                         contentAlignment = Alignment.Center
@@ -107,14 +145,14 @@ fun DashboardScreen(
                             imageVector = Icons.Default.AccountBalanceWallet,
                             contentDescription = null,
                             tint = BrandPrimary,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 HorizontalDivider(color = BorderGray)
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

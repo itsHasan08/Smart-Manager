@@ -49,14 +49,14 @@ fun MonthlySettlementScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (currentLanguage == AppLanguage.BN) "মাসিক হিসাব ও বিবরণী" else "Monthly Statement & Audit",
+                        if (currentLanguage == AppLanguage.BN) "মাসিক হিসাব ও স্লিপ" else "Monthly Statement & Audit",
                         fontWeight = FontWeight.Bold,
                         color = DarkText
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = RedPrimary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = BrandPrimary)
                     }
                 },
                 actions = {
@@ -67,7 +67,7 @@ fun MonthlySettlementScreen(
                         },
                         modifier = Modifier.testTag("share_settlement_report_btn")
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Export Report", tint = RedPrimary)
+                        Icon(Icons.Default.Share, contentDescription = "Export Report", tint = BrandPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PureWhite)
@@ -76,10 +76,9 @@ fun MonthlySettlementScreen(
         bottomBar = {
             Surface(
                 color = PureWhite,
-                border = BorderStroke(1.dp, BorderGray),
-                modifier = Modifier.fillMaxWidth()
+                border = BorderStroke(1.dp, BorderGray)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
@@ -89,7 +88,7 @@ fun MonthlySettlementScreen(
                             val text = onGenerateReportText()
                             shareReport(context, text, currentMonth, currentLanguage)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = RedPrimary, contentColor = PureWhite),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary, contentColor = PureWhite),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -122,19 +121,19 @@ fun MonthlySettlementScreen(
                 )
             }
 
-            // Summary Card (Red Container)
+            // Summary Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = RedPrimaryContainer),
-                    border = BorderStroke(1.dp, RedPrimary.copy(alpha = 0.25f))
+                    colors = CardDefaults.cardColors(containerColor = BrandPrimaryContainer),
+                    border = BorderStroke(1.dp, BrandPrimary.copy(alpha = 0.25f))
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = if (currentLanguage == AppLanguage.BN) "মেসের মাসিক হিসাব সারাংশ" else "Monthly Mess Overview",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            color = RedOnPrimaryContainer
+                            color = BrandPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
@@ -147,7 +146,7 @@ fun MonthlySettlementScreen(
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = RedPrimary.copy(alpha = 0.15f))
+                        HorizontalDivider(color = BrandPrimary.copy(alpha = 0.15f))
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Row(
@@ -167,15 +166,15 @@ fun MonthlySettlementScreen(
                                 Text(
                                     "৳${String.format(Locale.US, "%,.0f", summary.monthlyBazar)}",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = DarkText
+                                    color = ExpenseCoral
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text(Strings.rentAndBills(currentLanguage), style = MaterialTheme.typography.labelSmall, color = GrayText)
+                                Text(Strings.totalDeposits(currentLanguage), style = MaterialTheme.typography.labelSmall, color = GrayText)
                                 Text(
-                                    "৳${String.format(Locale.US, "%,.0f", summary.houseRent + summary.totalUtilityBills)}",
+                                    "৳${String.format(Locale.US, "%,.0f", summary.totalDeposits)}",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = DarkText
+                                    color = DepositGreen
                                 )
                             }
                         }
@@ -230,13 +229,9 @@ fun MonthlySettlementScreen(
                             label = if (currentLanguage == AppLanguage.BN) {
                                 "মিল বাবদ (${String.format(Locale.US, "%.1f", stmt.mealCount)} x ৳${String.format(Locale.US, "%.2f", summary.mealRate)})"
                             } else {
-                                "Meal Share (${String.format(Locale.US, "%.1f", stmt.mealCount)} x ৳${String.format(Locale.US, "%.2f", summary.mealRate)})"
+                                "Meal Cost (${String.format(Locale.US, "%.1f", stmt.mealCount)} x ৳${String.format(Locale.US, "%.2f", summary.mealRate)})"
                             },
                             amount = stmt.mealCost
-                        )
-                        CostRow(
-                            label = if (currentLanguage == AppLanguage.BN) "বাসা ভাড়া ও বিল বাবদ" else "Rent & Utilities Share",
-                            amount = stmt.rentShare + stmt.utilityShare + stmt.otherShare
                         )
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp), color = BorderGray)
@@ -250,46 +245,22 @@ fun MonthlySettlementScreen(
                             label = if (currentLanguage == AppLanguage.BN) "মোট নগদ জমা" else "Total Cash Paid",
                             amount = stmt.totalPaid,
                             isBold = true,
-                            amountColor = AdvanceGreen
+                            amountColor = DepositGreen
                         )
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp), color = BorderGray)
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = if (stmt.isDue) {
-                                    if (currentLanguage == AppLanguage.BN) "🔴 বাকি (Payable Due)" else "🔴 Payable Due"
-                                } else {
-                                    if (currentLanguage == AppLanguage.BN) "🟢 জমা ব্যালেন্স (Advance)" else "🟢 Advance Balance"
-                                },
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                color = if (stmt.isDue) RedPrimary else AdvanceGreen
-                            )
-                            Text(
-                                text = "৳${String.format(Locale.US, "%,.2f", if (stmt.isDue) stmt.dueAmount else stmt.advanceAmount)}",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                color = if (stmt.isDue) RedPrimary else AdvanceGreen
-                            )
-                        }
                     }
                 }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(60.dp))
             }
         }
     }
 }
 
-private fun shareReport(context: Context, reportText: String, month: String, lang: AppLanguage) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
+private fun shareReport(context: Context, text: String, month: String, currentLanguage: AppLanguage) {
+    val title = if (currentLanguage == AppLanguage.BN) "মেস হিসাব $month" else "Mess Report $month"
+    val sendIntent = Intent().apply {
+        action = Intent.ACTION_SEND
+        putExtra(Intent.EXTRA_TITLE, title)
+        putExtra(Intent.EXTRA_TEXT, text)
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, if (lang == AppLanguage.BN) "মেস মাসিক হিসাব - $month" else "Mess Monthly Settlement - $month")
-        putExtra(Intent.EXTRA_TEXT, reportText)
     }
-    context.startActivity(Intent.createChooser(intent, if (lang == AppLanguage.BN) "হিসাব বিবরণী শেয়ার করুন" else "Share Statement"))
+    context.startActivity(Intent.createChooser(sendIntent, title))
 }
